@@ -11,11 +11,12 @@ from scipy import stats
 
 # Global Vars
 pathto_EIA = 'G:\My Drive\Documents (Stored)\data_sets\EIA_theremoelectric_water_use'
-pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\Cooling_System_Information_V6_io'
-pathto_geninfo = os.path.join(pathto_data, 'input', 'geninfo.csv')
+pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.1'
+pathto_geninfo = os.path.join(pathto_data, 'synthetic_grid', 'gen_info_match.csv')
 pathto_h5 = os.path.join(pathto_data, 'temp', 'processing_data.h5')
-pathto_results = os.path.join(pathto_data, 'output', 'geninfo_water.csv')
-pathto_fitted_params = os.path.join(pathto_data, 'output', 'fitted_params.csv')
+pathto_results = os.path.join(pathto_data, 'output', 'gen_info_match_water.csv')
+
+
 
 def importEIAData():
     # Local Vars
@@ -153,26 +154,9 @@ def getGeneratorWaterData(df_region, df_geninfo):
     df_geninfo = getClusterData(df_geninfo, df_region, 'coal', 'OC', 3.0)
     df_geninfo = getClusterData(df_geninfo, df_region, 'nuclear', 'RC', 1.0)
     df_geninfo = getClusterData(df_geninfo, df_region, 'ng', 'RI', 1.0)
-    df_geninfo[['Withdrawal Rate Cluster Data (Gallon/kWh)', 'Consumption Rate Cluster Data (Gallon/kWh)']] = df_geninfo[['Withdrawal Rate Cluster Data (Gallon/kWh)', 'Consumption Rate Cluster Data (Gallon/kWh)']].fillna(0.0)  # No cooling systems get assigned a value of 0
+    df_geninfo[['Withdrawal Rate Cluster Data (Gallon/kWh)', 'Consumption Rate Cluster Data (Gallon/kWh)']] = \
+        df_geninfo[['Withdrawal Rate Cluster Data (Gallon/kWh)', 'Consumption Rate Cluster Data (Gallon/kWh)']].fillna(0.0)  # No cooling systems get assigned a value of 0
     return df_geninfo, df_region
-
-
-def fit_distribution(df):
-    # Prepare Data
-    df['Uniform Water Coefficient Consumption'] = df['Withdrawal Rate (Gallon/kWh)'] / df['Withdrawal Rate (Gallon/kWh) Median']
-    df['Uniform Water Coefficient Withdrawal'] = df['Consumption Rate (Gallon/kWh)'] / df['Consumption Rate (Gallon/kWh) Median']
-    df = df.melt(value_vars=['Uniform Water Coefficient Consumption', 'Uniform Water Coefficient Withdrawal'],
-                      id_vars=['923 Cooling Type', 'Fuel Type'], var_name='Exogenous Parameter')
-    df['Cooling System/Fuel Type'] = df['923 Cooling Type'] + '/' + df['Fuel Type']
-    # Fit
-    df_fitted = pd.DataFrame()
-    for i, j in enumerate(df['Cooling System/Fuel Type'].unique()):
-        samp = df[df['Cooling System/Fuel Type'] == j]['value'].values
-        shape, loc, scale = stats.lognorm.fit(samp, floc=0.0)  # sigma = shape and mu = np.log(scale)
-        sigma = shape
-        mu = np.log(scale)
-        df_fitted = df_fitted.append(pd.Series({'Mu': mu, 'Sigma': sigma}).rename(j))
-    return df_fitted
 
 
 def regionDistribututionPlotter(df):
@@ -270,18 +254,16 @@ def main():
     # Median Case
     df_geninfo['Median Withdrawal Rate (Gallon/kWh)'] = df_geninfo.apply(lambda row: np.median(row['Withdrawal Rate Cluster Data (Gallon/kWh)']), axis=1)
     df_geninfo['Median Consumption Rate (Gallon/kWh)'] = df_geninfo.apply(lambda row: np.median(row['Consumption Rate Cluster Data (Gallon/kWh)']), axis=1)
-    # Fit Distributions
-    df_fitted = fit_distribution(df_region)
-    df_fitted.to_csv(pathto_fitted_params)
-    # Plotting
-    fig1, fig2 = regionDistribututionPlotter(df_region)
-    fig1.savefig('uniform water coefficient distribution (withdrawal).pdf')
-    fig2.savefig('uniform water coefficient distribution (consumption).pdf')
-    regionBoxPlotter(df_region).fig.savefig('region water boxplots.pdf')
-    regionFitandHistPlotter(df_region, df_fitted).savefig('Uniform Water Coefficient Fitted Distributions.pdf')
-    coalPlotter(df_region).fig.savefig('coal scatter kmeans.pdf')
-    # Export
-    df_geninfo.to_csv(pathto_results, index=False)
+
+    # # Plotting
+    # fig1, fig2 = regionDistribututionPlotter(df_region)
+    # fig1.savefig('uniform water coefficient distribution (withdrawal).pdf')
+    # fig2.savefig('uniform water coefficient distribution (consumption).pdf')
+    # regionBoxPlotter(df_region).fig.savefig('region water boxplots.pdf')
+    # regionFitandHistPlotter(df_region, df_fitted).savefig('Uniform Water Coefficient Fitted Distributions.pdf')
+    # coalPlotter(df_region).fig.savefig('coal scatter kmeans.pdf')
+    # # Export
+    # df_geninfo.to_csv(pathto_results, index=False)
     return 0
 
 
