@@ -16,6 +16,7 @@ pathto_geninfo = os.path.join(pathto_data, 'synthetic_grid', 'gen_info_match.csv
 pathto_h5 = os.path.join(pathto_data, 'temp', 'processing_data.h5')
 pathto_geninfo_water = os.path.join(pathto_data, 'synthetic_grid', 'gen_info_match_water.csv')
 pathto_historic_nonuniform = os.path.join(pathto_data, 'synthetic_grid', 'historic_nonuniform_water_coefficients.csv')
+pathto_figures = os.path.join(pathto_data, 'figures')
 
 
 def importEIAData():
@@ -164,6 +165,7 @@ def get_historic_nonuniform_water_coefficients(df_region):
                       id_vars=['923 Cooling Type', 'Fuel Type'], var_name='Exogenous Parameter')
     df['Input Factor'] = 'C water ' + df['Fuel Type'] + ' ' + df['923 Cooling Type']
     df = df.drop('Exogenous Parameter', axis=1)
+    df = df.sort_values('Fuel Type')
     return df
 
 
@@ -201,29 +203,16 @@ def regionBoxPlotter(df):
     return g
 
 
-def regionFitandHistPlotter(df_region, df_fitted):
-    df_region['Uniform Water Coefficient Consumption'] = df_region['Withdrawal Rate (Gallon/kWh)'] / df_region['Withdrawal Rate (Gallon/kWh) Median']
-    df_region['Uniform Water Coefficient Withdrawal'] = df_region['Consumption Rate (Gallon/kWh)'] / df_region['Consumption Rate (Gallon/kWh) Median']
-    df_plot = df_region.melt(value_vars=['Uniform Water Coefficient Consumption', 'Uniform Water Coefficient Withdrawal'],
-                      id_vars=['923 Cooling Type', 'Fuel Type'], var_name='Exogenous Parameter')
-    df_plot['Cooling System/Fuel Type'] = df_plot['923 Cooling Type'] + '/' + df_plot['Fuel Type']
-    # Fit
-    fig, axes = plt.subplots(len(df_plot['Cooling System/Fuel Type'].unique()), figsize=(8,15))
-    for i, j in enumerate(df_plot['Cooling System/Fuel Type'].unique()):
-        samp = df_plot[df_plot['Cooling System/Fuel Type'] == j]['value'].values
-        loc = 0.0
-        shape = df_fitted['Sigma'][j]
-        scale = np.exp(df_fitted['Mu'][j])
-        ax = sns.histplot(samp, kde=False, stat='density', label='Historic', ax=axes[i])
-        x0, x1 = ax.get_xlim()  # extract the endpoints for the x-axis
-        x_pdf = np.linspace(x0, x1, 100)
-        y_pdf = stats.lognorm(shape, loc, scale).pdf(x_pdf)
-        axes[i].plot(x_pdf, y_pdf, 'r', lw=2, label='pdf')
-        ax.legend()
-        ax.set_title(j)
-    plt.subplots_adjust(hspace=0.4)
+def hnwc_plotter(df):
+    g = sns.FacetGrid(df, row='Input Factor', sharex=False, sharey=False, aspect=2)
+    g.map(sns.histplot, 'value', stat='density')
+    g.axes[0, 0].set_title('$C_{water,coal,induced-recirculating}$')
+    g.axes[1, 0].set_title('$C_{water,coal,recirculating}$')
+    g.axes[2, 0].set_title('$C_{water,coal,once-through}$')
+    g.axes[3, 0].set_title('$C_{water,natural-gas,induced-recirculating}$')
+    g.axes[4, 0].set_title('$C_{water,nuclear,recirculating}$')
     plt.show()
-    return fig
+    return g
 
 
 def coalPlotter(df):
@@ -267,14 +256,12 @@ def main():
     df_hnwc = get_historic_nonuniform_water_coefficients(df_region)
     df_hnwc.to_csv(pathto_historic_nonuniform, index=False)
     # Plotting
-    # fig1, fig2 = regionDistribututionPlotter(df_region)
-    # fig1.savefig('../figures/uniform water coefficient distribution (withdrawal).pdf')
-    # fig2.savefig('../figures/uniform water coefficient distribution (consumption).pdf')
-    # regionBoxPlotter(df_region).fig.savefig('../figures/region water boxplots.pdf')
-    # # regionFitandHistPlotter(df_region, df_fitted).savefig('Uniform Water Coefficient Fitted Distributions.pdf')
-    # coalPlotter(df_region).fig.savefig('../figures/coal scatter kmeans.pdf')
-    # # Export
-    # df_geninfo.to_csv(pathto_results, index=False)
+    fig1, fig2 = regionDistribututionPlotter(df_region)
+    fig1.savefig(os.path.join(pathto_figures, 'uniform water coefficient distribution (withdrawal).pdf'))
+    fig2.savefig(os.path.join(pathto_figures, 'uniform water coefficient distribution (consumption).pdf'))
+    regionBoxPlotter(df_region).fig.savefig(os.path.join(pathto_figures, 'region water boxplots.pdf'))
+    coalPlotter(df_region).fig.savefig(os.path.join(pathto_figures, 'coal scatter kmeans.pdf'))
+    hnwc_plotter(df_hnwc).fig.savefig(os.path.join(pathto_figures, 'historic nonuniform water coefficient histograms.pdf'))
     return 0
 
 
