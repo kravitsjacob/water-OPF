@@ -20,9 +20,9 @@ savecase(pathto_case_export, mpc)
 
 
 function T = getInfo(mpc)
-    T = table(mpc.gen(:,1), 'VariableNames', {'Synthetic Generator Index'});
-    T.('Synthetic Generator Name') = mpc.bus_name(T.('Synthetic Generator Index'));
-    T.('Synthetic Type') = mpc.gentype;
-    T.('Synthetic Fuel') = mpc.genfuel;
-    T.('Synthetic Maximum real power output (MW)') = mpc.gen(:,9); 
+    T = table(mpc.gen(:,1), 'VariableNames', {'MATPOWER Index'});
+    T.('MATPOWER Generator Name') = mpc.bus_name(T.('MATPOWER Index'));
+    T.('MATPOWER Type') = mpc.gentype;
+    T.('MATPOWER Fuel') = mpc.genfuel;
+    T.('MATPOWER Capacity (MW)') = mpc.gen(:,9); 
 end
