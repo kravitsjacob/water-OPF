@@ -14,8 +14,8 @@ pathto_EIA = 'G:\My Drive\Documents (Stored)\data_sets\EIA_theremoelectric_water
 pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.1'
 pathto_geninfo = os.path.join(pathto_data, 'synthetic_grid', 'gen_info_match.csv')
 pathto_h5 = os.path.join(pathto_data, 'temp', 'processing_data.h5')
-pathto_results = os.path.join(pathto_data, 'output', 'gen_info_match_water.csv')
-
+pathto_geninfo_water = os.path.join(pathto_data, 'synthetic_grid', 'gen_info_match_water.csv')
+pathto_historic_nonuniform = os.path.join(pathto_data, 'synthetic_grid', 'historic_nonuniform_water_coefficients.csv')
 
 
 def importEIAData():
@@ -157,6 +157,16 @@ def getGeneratorWaterData(df_region, df_geninfo):
     return df_geninfo, df_region
 
 
+def get_historic_nonuniform_water_coefficients(df_region):
+    df_region['Uniform Water Coefficient Consumption'] = df_region['Withdrawal Rate (Gallon/kWh)'] / df_region['Withdrawal Rate (Gallon/kWh) Median']
+    df_region['Uniform Water Coefficient Withdrawal'] = df_region['Consumption Rate (Gallon/kWh)'] / df_region['Consumption Rate (Gallon/kWh) Median']
+    df = df_region.melt(value_vars=['Uniform Water Coefficient Consumption', 'Uniform Water Coefficient Withdrawal'],
+                      id_vars=['923 Cooling Type', 'Fuel Type'], var_name='Exogenous Parameter')
+    df['Input Factor'] = 'C water ' + df['Fuel Type'] + ' ' + df['923 Cooling Type']
+    df = df.drop('Exogenous Parameter', axis=1)
+    return df
+
+
 def regionDistribututionPlotter(df):
     df['Uniform Water Coefficient'] = df['Withdrawal Rate (Gallon/kWh)'] / df['Withdrawal Rate (Gallon/kWh) Median']
     fig, ax1 = plt.subplots()
@@ -252,14 +262,17 @@ def main():
     # Median Case
     df_geninfo['Median Withdrawal Rate (Gallon/kWh)'] = df_geninfo.apply(lambda row: np.median(row['Withdrawal Rate Cluster Data (Gallon/kWh)']), axis=1)
     df_geninfo['Median Consumption Rate (Gallon/kWh)'] = df_geninfo.apply(lambda row: np.median(row['Consumption Rate Cluster Data (Gallon/kWh)']), axis=1)
-
+    df_geninfo.to_csv(pathto_geninfo_water, index=False)
+    # Get historic nonuniform water coefficients
+    df_hnwc = get_historic_nonuniform_water_coefficients(df_region)
+    df_hnwc.to_csv(pathto_historic_nonuniform, index=False)
     # Plotting
-    fig1, fig2 = regionDistribututionPlotter(df_region)
-    fig1.savefig('../figures/uniform water coefficient distribution (withdrawal).pdf')
-    fig2.savefig('../figures/uniform water coefficient distribution (consumption).pdf')
-    regionBoxPlotter(df_region).fig.savefig('../figures/region water boxplots.pdf')
-    # regionFitandHistPlotter(df_region, df_fitted).savefig('Uniform Water Coefficient Fitted Distributions.pdf')
-    coalPlotter(df_region).fig.savefig('../figures/coal scatter kmeans.pdf')
+    # fig1, fig2 = regionDistribututionPlotter(df_region)
+    # fig1.savefig('../figures/uniform water coefficient distribution (withdrawal).pdf')
+    # fig2.savefig('../figures/uniform water coefficient distribution (consumption).pdf')
+    # regionBoxPlotter(df_region).fig.savefig('../figures/region water boxplots.pdf')
+    # # regionFitandHistPlotter(df_region, df_fitted).savefig('Uniform Water Coefficient Fitted Distributions.pdf')
+    # coalPlotter(df_region).fig.savefig('../figures/coal scatter kmeans.pdf')
     # # Export
     # df_geninfo.to_csv(pathto_results, index=False)
     return 0
