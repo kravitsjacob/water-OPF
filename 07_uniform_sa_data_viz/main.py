@@ -8,8 +8,8 @@ import seaborn as sns; sns.set()
 import hiplot as hip
 
 
-pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\Water_OPF_GS_V5_io'
-pathto_results = os.path.join(pathto_data, 'output', 'results.csv')
+pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.1'
+pathto_samples = os.path.join(pathto_data, 'uniform_sa_samples', 'samples.csv')
 
 factor_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)', 'Uniform Water Factor', 'Uniform Loading Factor']
 obj_labs = ['Total Cost ($)', 'Generator Cost ($)',	'Water Withdrawal (Gallon)', 'Water Consumption (Gallon)']

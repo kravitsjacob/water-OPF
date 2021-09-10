@@ -1,11 +1,12 @@
 
+import os
 from dtreeviz.trees import *
 from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPDF
 
 
 pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.1'
-pathto_results = os.path.join(pathto_data, 'uniform_sa_samples', 'samples.csv')
+pathto_samples = os.path.join(pathto_data, 'uniform_sa_samples', 'samples.csv')
 pathto_figures = os.path.join(pathto_data, 'figures')
 
 
@@ -38,7 +39,7 @@ def dtreeViz(mods, df, filenames):
 
 
 def main():
-    df = pd.read_csv(pathto_results)
+    df = pd.read_csv(pathto_samples)
     mods = fitSingleModels(df)
     dtreeViz(mods, df, ['Total Cost (Dollar) Tree', 'Generator Cost (Dollar) Tree', 'Water Withdrawal (Gallon) Tree', 'Water Consumption (Gallon) Tree'])
     return 0
