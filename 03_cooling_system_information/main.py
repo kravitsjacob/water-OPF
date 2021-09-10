@@ -170,19 +170,11 @@ def get_historic_nonuniform_water_coefficients(df_region):
 
 
 def regionDistribututionPlotter(df):
-    df['Uniform Water Coefficient'] = df['Withdrawal Rate (Gallon/kWh)'] / df['Withdrawal Rate (Gallon/kWh) Median']
-    fig, ax1 = plt.subplots()
-    sns.histplot(data=df, x='Uniform Water Coefficient', ax=ax1, bins=20)
-    plt.tight_layout()
+    data = (df['Withdrawal Rate (Gallon/kWh)'] / df['Withdrawal Rate (Gallon/kWh) Median']).append(
+        df['Consumption Rate (Gallon/kWh)'] / df['Consumption Rate (Gallon/kWh) Median'])
+    g = sns.histplot(data)
     plt.show()
-
-    df['Uniform Water Coefficient'] = df['Consumption Rate (Gallon/kWh)'] / df['Consumption Rate (Gallon/kWh) Median']
-    fig2, ax2 = plt.subplots()
-    sns.histplot(data=df, x='Uniform Water Coefficient', ax=ax2, bins=20)
-    plt.tight_layout()
-    plt.show()
-
-    return fig, fig2
+    return g
 
 
 def regionBoxPlotter(df):
@@ -256,9 +248,7 @@ def main():
     df_hnwc = get_historic_nonuniform_water_coefficients(df_region)
     df_hnwc.to_csv(pathto_historic_nonuniform, index=False)
     # Plotting
-    fig1, fig2 = regionDistribututionPlotter(df_region)
-    fig1.savefig(os.path.join(pathto_figures, 'uniform water coefficient distribution (withdrawal).pdf'))
-    fig2.savefig(os.path.join(pathto_figures, 'uniform water coefficient distribution (consumption).pdf'))
+    regionDistribututionPlotter(df_region).figure.savefig(os.path.join(pathto_figures, 'uniform water coefficient distribution.pdf'))
     regionBoxPlotter(df_region).fig.savefig(os.path.join(pathto_figures, 'region water boxplots.pdf'))
     coalPlotter(df_region).fig.savefig(os.path.join(pathto_figures, 'coal scatter kmeans.pdf'))
     hnwc_plotter(df_hnwc).fig.savefig(os.path.join(pathto_figures, 'historic nonuniform water coefficient histograms.pdf'))
