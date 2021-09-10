@@ -4,8 +4,10 @@ from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPDF
 
 
-pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\Water_OPF_GS_V5_io'
-pathto_results = os.path.join(pathto_data, 'output', 'results.csv')
+pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.1'
+pathto_results = os.path.join(pathto_data, 'uniform_sa_samples', 'samples.csv')
+pathto_figures = os.path.join(pathto_data, 'figures')
+
 
 factor_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)', 'Uniform Water Factor', 'Uniform Loading Factor']
 obj_labs = ['Total Cost ($)', 'Generator Cost ($)',	'Water Withdrawal (Gallon)', 'Water Consumption (Gallon)']
@@ -29,10 +31,11 @@ def dtreeViz(mods, df, filenames):
                        orientation='LR')
         viz.save(filenames[index]+'.svg')
         drawing = svg2rlg(filenames[index]+'.svg')
-        renderPDF.drawToFile(drawing, filenames[index]+'.pdf')
+        renderPDF.drawToFile(drawing, os.path.join(pathto_figures, filenames[index]+'.pdf'))
         os.remove(filenames[index]+'.svg')
         os.remove(filenames[index])
     return 0
+
 
 def main():
     df = pd.read_csv(pathto_results)
