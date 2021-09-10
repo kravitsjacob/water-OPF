@@ -1,74 +1,15 @@
 
 import os
 import pandas as pd
-
 import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
 
-import hiplot as hip
-
-
-pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\Water_OPF_GS_V5_io'
-pathto_results = os.path.join(pathto_data, 'output', 'results.csv')
+pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.1'
+pathto_samples = os.path.join(pathto_data, 'uniform_sa_samples', 'samples.csv')
+pathto_figures = os.path.join(pathto_data, 'figures')
 
 factor_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)', 'Uniform Water Factor', 'Uniform Loading Factor']
 obj_labs = ['Total Cost ($)', 'Generator Cost ($)',	'Water Withdrawal (Gallon)', 'Water Consumption (Gallon)']
-
-
-def viz_1(df):
-    # Prepare Data
-    plot_df = pd.melt(df, value_vars=obj_labs, id_vars=factor_labs, value_name='Objective Value', var_name='Objective')
-    plot_df = pd.melt(plot_df, value_vars=factor_labs, id_vars=['Objective Value', 'Objective'], var_name='Input Factor',
-                value_name='Input Factor Value')
-    # Plot
-    g = sns.FacetGrid(plot_df, row='Objective', col='Input Factor', sharey='row', sharex='col')
-    g.map(sns.scatterplot, 'Input Factor Value', 'Objective Value')
-    [ax.set_title('') for ax in g.axes.flat]
-    g.axes[0, 0].set_ylabel('Foo')
-    [ax.set_ylabel(obj_labs[i]) for i, ax in enumerate(g.axes[:, 0])]
-    [ax.set_xlabel(factor_labs[i]) for i, ax in enumerate(g.axes[3, :])]
-    return g
-
-
-def viz_2(df):
-    for i in obj_labs:
-        # Plot
-        plot_df = df[factor_labs + [i]]
-        g = sns.PairGrid(plot_df, hue=i, palette='viridis', corner=True)
-        g.map_lower(sns.scatterplot)
-        [g.axes[i, i].set_visible(False) for i in [0, 1, 2, 3]]
-        # Colorbar
-        cbar_ax = g.fig.add_axes([.60, .3, .05, .4])
-        norm = plt.Normalize(plot_df[i].min(), plot_df[i].max())
-        sm = plt.cm.ScalarMappable(cmap='viridis', norm=norm)
-        sm.set_array([])
-        g.fig.figure.colorbar(sm, cax=cbar_ax)
-        cbar_ax.set_ylabel(i)
-        plt.show()
-    return g
-
-
-def viz_3(df):
-    for i in obj_labs:
-        a = 1
-        plot_df = df[factor_labs + [i]]
-        plot_df = pd.melt(plot_df, value_vars=i, id_vars=factor_labs, value_name='Objective Value', var_name='Objective')
-        # Plot
-        g = sns.FacetGrid(plot_df, row='Withdrawal Weight ($/Gallon)', col='Consumption Weight ($/Gallon)')
-        g.map(sns.scatterplot, 'Uniform Water Factor', 'Uniform Loading Factor', 'Objective Value')
-        plt.show()
-    return g
-
-
-def viz_4(df):
-    plot_df = df[factor_labs + obj_labs]
-    # Create Plot
-    exp = hip.Experiment.from_dataframe(plot_df)
-    exp.parameters_definition['Total Cost ($)'].colormap = 'interpolateViridis'
-    exp.display_data(hip.Displays.PARALLEL_PLOT).update({'hide': ['uid']})
-    exp.display_data(hip.Displays.TABLE).update({'hide': ['uid', 'from_uid']})
-    exp.to_html('parallel.html')
-    return 0
 
 
 def viz_5(df):
@@ -84,14 +25,8 @@ def viz_5(df):
     g.map(sns.scatterplot, 'Uniform Loading Factor', 'value', 'Withdrawal Weight ($/Gallon)')
     g.add_legend(title='Binned Withdrawal Weight ($/Gallon)')
     g.set_ylabels('Water Withdrawal (Gallon)')
-    plt.savefig('Effect of Withdrawal Weight on Withdrawl.pdf')
     plt.show()
-    # All Vars
-    # plot_df = pd.melt(plot_df, value_vars=obj_labs, id_vars=factor_labs, value_name='Objective Value', var_name='Objective')
-    # g = sns.FacetGrid(plot_df, row='Objective', col='Uniform Water Factor')
-    # g.map(sns.scatterplot, 'Uniform Loading Factor', 'Objective Value', 'Withdrawal Weight ($/Gallon)')
-    plt.show()
-    return 0
+    return g
 
 
 def draw_lineplot(*args, **kwargs):
@@ -101,10 +36,6 @@ def draw_lineplot(*args, **kwargs):
     ax.figure.canvas.draw()
     ax.set_xticklabels(ax.get_xticklabels(), rotation=90, size=10)
     return ax
-
-# fig, ax = plt.subplots(figsize=(20,4))
-# sns.scatterplot(data=data, x='Generator', y='Output Capacity Ratio', hue='Withdrawal Weight ($/Gallon)', estimator=None, ax=ax)
-# plt.show()
 
 
 def viz_6(df):
@@ -121,20 +52,14 @@ def viz_6(df):
     g.add_legend()
     g.set_ylabels('Output Capacity Ratio')
     g.set_xlabels('Generator')
-    plt.savefig('Effect of Withdrawal Weight on Generator Output.pdf')
     plt.show()
-    return 0
+    return g
 
 
 def main():
-    df = pd.read_csv(pathto_results)
-    #viz_1(df)
-    #viz_2(df)
-    #viz_3(df)
-    #viz_4(df)
-    #viz_5(df)
-    viz_6(df)
-
+    df = pd.read_csv(pathto_samples)
+    viz_5(df).fig.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawl.pdf'))
+    viz_6(df).fig.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Generator Output.pdf'))
     return 0
 
 
