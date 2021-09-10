@@ -196,13 +196,13 @@ def regionBoxPlotter(df):
 
 
 def hnwc_plotter(df):
-    g = sns.FacetGrid(df, row='Input Factor', sharex=False, sharey=False, aspect=2)
+    g = sns.FacetGrid(df, col='Input Factor', col_wrap=2, sharex=False, sharey=False, aspect=1.5)
     g.map(sns.histplot, 'value', stat='density')
-    g.axes[0, 0].set_title('$C_{water,coal,induced-recirculating}$')
-    g.axes[1, 0].set_title('$C_{water,coal,recirculating}$')
-    g.axes[2, 0].set_title('$C_{water,coal,once-through}$')
-    g.axes[3, 0].set_title('$C_{water,natural-gas,induced-recirculating}$')
-    g.axes[4, 0].set_title('$C_{water,nuclear,recirculating}$')
+    g.axes[0].set_title('$C_{water,coal,induced-recirculating}$')
+    g.axes[1].set_title('$C_{water,coal,recirculating}$')
+    g.axes[2].set_title('$C_{water,coal,once-through}$')
+    g.axes[3].set_title('$C_{water,natural-gas,induced-recirculating}$')
+    g.axes[4].set_title('$C_{water,nuclear,recirculating}$')
     plt.show()
     return g
 
