@@ -11,7 +11,7 @@ from scipy import stats
 
 # Global Vars
 pathto_EIA = 'G:\My Drive\Documents (Stored)\data_sets\EIA_theremoelectric_water_use'
-pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.1'
+pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.2'
 pathto_geninfo = os.path.join(pathto_data, 'synthetic_grid', 'gen_info_match.csv')
 pathto_h5 = os.path.join(pathto_data, 'temp', 'processing_data.h5')
 pathto_geninfo_water = os.path.join(pathto_data, 'synthetic_grid', 'gen_info_match_water.csv')

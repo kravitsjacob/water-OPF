@@ -4,7 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns; sns.set()
 
-pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.1'
+pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.2'
 pathto_samples = os.path.join(pathto_data, 'uniform_sa_samples', 'samples.csv')
 pathto_figures = os.path.join(pathto_data, 'figures')
 

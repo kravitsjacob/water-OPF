@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 
 pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\load exogenous parameter testing V1 io'
 pathto_load = os.path.join(pathto_data, '20180101-20200101 MISO Forecasted Cleared & Actual Load.csv')
-pathto_figures = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.1\\figures'
+pathto_figures = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.2\\figures'
 
 def importData():
     df = pd.read_csv(pathto_load)
