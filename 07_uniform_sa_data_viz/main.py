@@ -71,16 +71,16 @@ def get_gen_output_ratio_with_fuelcool(df, df_gen_info):
 
 def viz_effect_of_withdrawal_weight_gen_output(df):
     # Selecting Data
-    df = df[df['Withdrawal Weight ($/Gallon)'] == 0.0]
+    df['Withdrawal Weight ($/Gallon)'] = pd.cut(df['Withdrawal Weight ($/Gallon)'], [0.0, 0.01, 0.1], labels=['0.0', '[0.01, 0.1]'], right=False)
     df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
-    df = df[df['Uniform Water Factor'] == 1.5]
+    df = df[df['Uniform Water Factor'] == 0.5]
     df = df[df['Fuel/Cooling Type'] == 'coal/OC']
     # Creating Plot
     df_plot = df
     fig, ax = plt.subplots(figsize=(8, 5))
     df_plot['MATPOWER Index'] = df_plot['MATPOWER Index'].astype('str')
     df_plot = df_plot.sort_values('Uniform Loading Factor', ascending=False)
-    sns.scatterplot(data=df_plot, x='Generator Output', y='MATPOWER Index', hue='Uniform Loading Factor', size='Uniform Loading Factor', sizes=(1, 200), alpha=1.0, ax=ax)
+    sns.scatterplot(data=df_plot, x='Generator Output', y='MATPOWER Index', hue='Uniform Loading Factor', size='Uniform Loading Factor', sizes=(10, 200), style='Withdrawal Weight ($/Gallon)', ax=ax)
     plt.legend(title='Uniform Loading Factor', bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
     plt.tight_layout()
     plt.show()
