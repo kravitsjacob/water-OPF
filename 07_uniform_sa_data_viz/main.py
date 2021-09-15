@@ -6,6 +6,7 @@ import seaborn as sns; sns.set()
 
 pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.2'
 pathto_samples = os.path.join(pathto_data, 'uniform_sa_samples', 'samples.csv')
+pathto_gen_info = os.path.join(pathto_data, 'synthetic_grid', 'gen_info_match_water.csv')
 pathto_figures = os.path.join(pathto_data, 'figures')
 
 factor_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)', 'Uniform Water Factor', 'Uniform Loading Factor']
@@ -27,6 +28,20 @@ def viz_effect_of_withdrawal_weight(df):
     plt.tight_layout()
     plt.show()
     return fig
+
+
+def get_coolfuel_output_ratio(df, df_gen_info):
+    #  Get generator output
+    df_capacity_ratio = df.iloc[:, 4: 4 + 49]
+    df_capacity_ratio.columns = df_capacity_ratio.columns.str.extract('(\d+)').astype(int)[0].tolist()
+    df_capacity_ratio = df_capacity_ratio.transpose()
+    ser_gen_capacity = pd.Series(df_gen_info['MATPOWER Capacity (MW)'].values, index=df_gen_info['MATPOWER Index'])
+    df_capacity_ratio.multiply(ser_gen_capacity, axis='index')
+
+    # Combine into fuel/cooling system type
+
+    # Pivot table
+    return 0
 
 
 # def draw_lineplot(*args, **kwargs):
@@ -58,7 +73,9 @@ def viz_effect_of_withdrawal_weight(df):
 
 def main():
     df = pd.read_csv(pathto_samples)
-    viz_effect_of_withdrawal_weight(df).savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawl.pdf'))
+    df_gen_info = pd.read_csv(pathto_gen_info)
+    #viz_effect_of_withdrawal_weight(df).savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawl.pdf'))
+    get_coolfuel_output_ratio(df, df_gen_info)
     #viz_6(df).fig.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Generator Output.pdf'))
     return 0
 
