@@ -69,69 +69,21 @@ def get_gen_output_ratio_with_fuelcool(df, df_gen_info):
     return df_capacity_ratio
 
 
-# def draw_lineplot(*args, **kwargs):
-#     data = kwargs.pop('data')
-#     ax = sns.lineplot(data=data, x='Generator', y='Output Capacity Ratio', style='Withdrawal Weight ($/Gallon)',
-#              hue='Uniform Loading Factor', estimator=None)
-#     ax.figure.canvas.draw()
-#     ax.set_xticklabels(ax.get_xticklabels(), rotation=90, size=10)
-#     return ax
-#
-#
-# def viz_6(df):
-#     # Prepare Data
-#     plot_df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
-#     plot_df = plot_df.round({'Uniform Water Factor': 2})
-#     plot_df = plot_df[plot_df['Uniform Water Factor'].isin(plot_df['Uniform Water Factor'].unique()[1::2])]
-#     plot_df['Withdrawal Weight ($/Gallon)'] = pd.cut(plot_df['Withdrawal Weight ($/Gallon)'], [0.0, 0.01, 0.1001], labels=['0.0', '[0.01, 0.1]'], right=False)
-#     plot_df = pd.melt(plot_df, value_vars=plot_df.columns[4: 4+49], id_vars=['Withdrawal Weight ($/Gallon)', 'Uniform Water Factor', 'Uniform Loading Factor'],value_name='Output Capacity Ratio', var_name='Generator')
-#     plot_df['Generator'] = plot_df['Generator'].str.extract('(\d+)')
-#     # Plot
-#     g = sns.FacetGrid(plot_df, col='Uniform Water Factor', col_wrap=3, aspect=2.5)
-#     g.map_dataframe(draw_lineplot)
-#     g.add_legend()
-#     g.set_ylabels('Output Capacity Ratio')
-#     g.set_xlabels('Generator')
-#     plt.show()
-#     return g
-
-def draw_lineplot_wrapper(*args, **kwargs):
-    data = kwargs.pop('data')
-    ax = sns.lineplot(data=data, x='Uniform Loading Factor', y='Generator Output', style='MATPOWER Index', markers=True)
-    #ax.figure.canvas.draw()
-    #ax.set_xticklabels(ax.get_xticklabels(), rotation=90, size=10)
-    return ax
-
-
 def viz_effect_of_withdrawal_weight_gen_output(df):
+    # Selecting Data
     df = df[df['Withdrawal Weight ($/Gallon)'] == 0.0]
     df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
     df = df[df['Uniform Water Factor'] == 1.5]
-
     df = df[df['Fuel/Cooling Type'] == 'coal/OC']
-
-    # Group together generators with same behavior
-    #df['Generator Output'] = df['Generator Output'].round(2)  # Assume same due to rounding
-    #df = df.groupby(['Generator Output', 'Fuel/Cooling Type'] + factor_labs)['MATPOWER Index'].apply(list)
-    #df = df.apply(lambda x: ', '.join([str(i) for i in x]))
-    #df = df.reset_index()
-
-    df = df[df['Fuel/Cooling Type'] == 'coal/OC']
-
-    for i in df['Fuel/Cooling Type'].unique():
-        df_plot = df[df['Fuel/Cooling Type'] == i]
-        fig, ax = plt.subplots(figsize=(8, 5))
-        sns.lineplot(data=df_plot, x='Uniform Loading Factor', y='Generator Output', style='MATPOWER Index', markers=True, ax=ax, alpha=0.5)
-        ax.set_title(i)
-        plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
-        plt.tight_layout()
-        plt.show()
-
-    g = sns.FacetGrid(df, col='Fuel/Cooling Type')
-    g.map_dataframe(draw_lineplot_wrapper)
-    g.add_legend()
+    # Creating Plot
+    df_plot = df
+    fig, ax = plt.subplots(figsize=(8, 5))
+    df_plot['MATPOWER Index'] = df_plot['MATPOWER Index'].astype('str')
+    df_plot = df_plot.sort_values('Uniform Loading Factor', ascending=False)
+    sns.scatterplot(data=df_plot, x='Generator Output', y='MATPOWER Index', hue='Uniform Loading Factor', size='Uniform Loading Factor', sizes=(1, 200), alpha=1.0, ax=ax)
+    plt.legend(title='Uniform Loading Factor', bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
+    plt.tight_layout()
     plt.show()
-
     return 0
 
 
