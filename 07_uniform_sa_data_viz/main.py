@@ -1,4 +1,5 @@
 
+import numpy as np
 import os
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -51,6 +52,23 @@ def get_fuelcool_output_ratio(df, df_gen_info):
     return df_fuelcool_output_ratio
 
 
+def get_gen_output_ratio_with_fuelcool(df, df_gen_info):
+    id_cols = ['MATPOWER Index', 'MATPOWER Fuel', '923 Cooling Type']
+    #  Get fuel/cooling type
+    df_capacity_ratio = df.loc[:, df.columns.str.contains('Ratio of Capacity')]  # Extract capacity ratios
+    df_capacity_ratio.columns = df_capacity_ratio.columns.str.extract('(\d+)').astype(int)[0].tolist()  # Change to numeric
+    df_capacity_ratio = df_capacity_ratio.transpose()
+    df_capacity_ratio = df_capacity_ratio.merge(df_gen_info[id_cols], left_index=True, right_on='MATPOWER Index')  # Get cooling system/fuel types
+
+    # Get Run information
+    df_capacity_ratio = df_capacity_ratio.melt(id_vars=id_cols, value_name='Generator Output', var_name='Run ID')
+    df_capacity_ratio = df_capacity_ratio.merge(df[factor_labs], left_on='Run ID', right_index=True)
+
+    # Combine Fuel/Cooling Types
+    df_capacity_ratio['Fuel/Cooling Type'] = df_capacity_ratio['MATPOWER Fuel'] + '/' + df_capacity_ratio['923 Cooling Type']
+    return df_capacity_ratio
+
+
 # def draw_lineplot(*args, **kwargs):
 #     data = kwargs.pop('data')
 #     ax = sns.lineplot(data=data, x='Generator', y='Output Capacity Ratio', style='Withdrawal Weight ($/Gallon)',
@@ -78,11 +96,20 @@ def get_fuelcool_output_ratio(df, df_gen_info):
 #     return g
 
 
+def viz_effect_of_withdrawal_weight_gen_output(df_capacity_ratio):
+
+    return 0
+
+
 def main():
     df = pd.read_csv(pathto_samples)
     df_gen_info = pd.read_csv(pathto_gen_info)
     #viz_effect_of_withdrawal_weight(df).savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawl.pdf'))
-    df_fuelcool_output_ratio = get_fuelcool_output_ratio(df, df_gen_info)
+    df_capacity_ratio = get_gen_output_ratio_with_fuelcool(df, df_gen_info)
+
+
+
+    #df_fuelcool_output_ratio = get_fuelcool_output_ratio(df, df_gen_info)
     #viz_6(df).fig.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Generator Output.pdf'))
     return 0
 
