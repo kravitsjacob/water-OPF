@@ -30,18 +30,25 @@ def viz_effect_of_withdrawal_weight(df):
     return fig
 
 
-def get_coolfuel_output_ratio(df, df_gen_info):
+def get_fuelcool_output_ratio(df, df_gen_info):
+    # Internal vars
+    n_runs = len(df)
     #  Get generator output
-    df_capacity_ratio = df.iloc[:, 4: 4 + 49]
+    df_capacity_ratio = df.loc[:, df.columns.str.contains('Ratio of Capacity')]
     df_capacity_ratio.columns = df_capacity_ratio.columns.str.extract('(\d+)').astype(int)[0].tolist()
     df_capacity_ratio = df_capacity_ratio.transpose()
     ser_gen_capacity = pd.Series(df_gen_info['MATPOWER Capacity (MW)'].values, index=df_gen_info['MATPOWER Index'])
-    df_capacity_ratio.multiply(ser_gen_capacity, axis='index')
-
+    df_gen_output = df_capacity_ratio.multiply(ser_gen_capacity, axis='index')
     # Combine into fuel/cooling system type
-
-    # Pivot table
-    return 0
+    df_gen_output = df_gen_output.merge(df_gen_info, left_index=True, right_on='MATPOWER Index')
+    df_fuelcool_output_ratio = df_gen_output.groupby(['MATPOWER Fuel', '923 Cooling Type']).sum()
+    # Get Ratio
+    df_fuelcool_output_ratio = df_fuelcool_output_ratio.iloc[:, 0:n_runs].divide(df_fuelcool_output_ratio['MATPOWER Capacity (MW)'], axis='index') # Hardcoded
+    # Combine with input factors
+    df_fuelcool_output_ratio = df_fuelcool_output_ratio.transpose()
+    df_fuelcool_output_ratio.columns = ['/'.join(col).strip() for col in df_fuelcool_output_ratio.columns.values]
+    df_fuelcool_output_ratio = df_fuelcool_output_ratio.join(df[factor_labs+obj_labs])
+    return df_fuelcool_output_ratio
 
 
 # def draw_lineplot(*args, **kwargs):
@@ -75,7 +82,7 @@ def main():
     df = pd.read_csv(pathto_samples)
     df_gen_info = pd.read_csv(pathto_gen_info)
     #viz_effect_of_withdrawal_weight(df).savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawl.pdf'))
-    get_coolfuel_output_ratio(df, df_gen_info)
+    df_fuelcool_output_ratio = get_fuelcool_output_ratio(df, df_gen_info)
     #viz_6(df).fig.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Generator Output.pdf'))
     return 0
 
