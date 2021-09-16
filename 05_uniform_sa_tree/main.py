@@ -10,7 +10,7 @@ pathto_samples = os.path.join(pathto_data, 'uniform_sa_samples', 'samples.csv')
 pathto_figures = os.path.join(pathto_data, 'figures')
 
 
-factor_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)', 'Uniform Water Factor', 'Uniform Loading Factor']
+factor_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)', 'Uniform Water Coefficient', 'Uniform Loading Coefficient']
 obj_labs = ['Total Cost ($)', 'Generator Cost ($)',	'Water Withdrawal (Gallon)', 'Water Consumption (Gallon)']
 
 
@@ -40,6 +40,7 @@ def dtreeViz(mods, df, filenames):
 
 def main():
     df = pd.read_csv(pathto_samples)
+    df = df.rename({'Uniform Loading Factor': 'Uniform Loading Coefficient', 'Uniform Water Factor': 'Uniform Water Coefficient'}, axis=1)
     mods = fitSingleModels(df)
     dtreeViz(mods, df, ['Total Cost (Dollar) Tree', 'Generator Cost (Dollar) Tree', 'Water Withdrawal (Gallon) Tree', 'Water Consumption (Gallon) Tree'])
     return 0
