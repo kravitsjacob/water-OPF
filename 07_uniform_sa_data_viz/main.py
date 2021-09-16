@@ -101,7 +101,7 @@ def viz_effect_of_withdrawal_weight_gen_output(df):
                 g.axes[row, col].set_title('')
 
             if col == 0:
-                g.axes[row, col].set_ylabel('$c_{water}=$'+str(uniform_water_criteria[row]))
+                g.axes[row, col].set_ylabel('Uniform Water Coefficient = '+str(uniform_water_criteria[row]))
     plt.show()
     return g
 
