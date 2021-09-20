@@ -2,8 +2,8 @@ clc
 
 
 pathto_case = fullfile('G:\My Drive\Documents (Stored)\data_sets\Illinois Synthetic Grid\ACTIVSg200', 'case_ACTIVSg200.m');
-pathto_case_info = fullfile('G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.1\synthetic_grid', 'gen_info.csv');
-pathto_case_export = fullfile('G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.1\synthetic_grid', 'case.mat');
+pathto_case_info = fullfile('G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.2\synthetic_grid', 'gen_info.csv');
+pathto_case_export = fullfile('G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.2\synthetic_grid', 'case.mat');
 
 
 % Main

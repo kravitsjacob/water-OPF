@@ -5,7 +5,7 @@ import os
 import matplotlib.pyplot as plt
 import seaborn as sns; sns.set_theme()
 
-pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.1'
+pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v0.2'
 pathto_operation = os.path.join(pathto_data, 'nonuniform_sa_scenarios', 'operational_scenarios.csv')
 pathto_figures = os.path.join(pathto_data, 'figures')
 
