@@ -1,15 +1,7 @@
-import pandapower.converter
 import pandas as pd
 
 
-def convert_matpower(pathto_matpowercase, pathto_case):
-    net = pandapower.converter.from_mpc(pathto_matpowercase)
-    pandapower.to_pickle(net, pathto_case)
-    return net
-
-
-def generator_match(pathto_geninfo, pathto_geninfo_match):
-    df_gen_info = pd.read_csv(pathto_geninfo)
+def generator_match(df_gen_info):
     # This is done manually through remotely sources images and spatial analysis
     manual_dict = {0: {'MATPOWER Index': 49,
              'EIA Plant Name': 'Rantoul',
@@ -211,7 +203,4 @@ def generator_match(pathto_geninfo, pathto_geninfo_match):
 
     # Merge manual matches
     df_gen_info_match = df_gen_info.merge(df_matches)
-
-    # Export
-    df_gen_info_match.to_csv(pathto_geninfo_match, index=False)
-    return 0
+    return df_gen_info_match
