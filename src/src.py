@@ -1,8 +1,10 @@
 import os
 import pandas as pd
 import numpy as np
-import seaborn as sns
+import seaborn as sns; sns.set()
 import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+
 
 def generator_match(df_gen_info):
     # This is done manually through remotely sources images and spatial analysis
