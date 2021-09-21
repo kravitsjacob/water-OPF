@@ -92,9 +92,9 @@ def main():
     if not os.path.exists(os.path.join(pathto_figures, 'Total Cost (Dollar) Tree.pdf')):
         drawing_ls = src.uniform_sa_tree(df_uniform, obj_labs, uniform_factor_labs)
         renderPDF.drawToFile(drawing_ls[0], os.path.join(pathto_figures, 'Total Cost (Dollar) Tree.pdf'))
-        renderPDF.drawToFile(drawing_ls[1], os.path.join(pathto_figures, 'Generator Cost (Dollar) Tree'))
-        renderPDF.drawToFile(drawing_ls[2], os.path.join(pathto_figures, 'Water Withdrawal (Gallon) Tree'))
-        renderPDF.drawToFile(drawing_ls[3], os.path.join(pathto_figures, 'Water Consumption (Gallon) Tree'))
+        renderPDF.drawToFile(drawing_ls[1], os.path.join(pathto_figures, 'Generator Cost (Dollar) Tree.pdf'))
+        renderPDF.drawToFile(drawing_ls[2], os.path.join(pathto_figures, 'Water Withdrawal (Gallon) Tree.pdf'))
+        renderPDF.drawToFile(drawing_ls[3], os.path.join(pathto_figures, 'Water Consumption (Gallon) Tree.pdf'))
     return 0
 
 
