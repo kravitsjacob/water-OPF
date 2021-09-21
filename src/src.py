@@ -624,49 +624,41 @@ def viz_effect_of_withdrawal_weight(df, uniform_factor_labs, obj_labs):
     return fig
 
 
-def get_fuelcool_output_ratio(df, df_gen_info):
+def get_plant_output_ratio(df, df_gen_info, uniform_factor_labs, obj_labs):
     # Internal vars
     n_runs = len(df)
-    #  Get generator output
+    plant_names = df_gen_info['Plant Name'].unique().tolist()
+
+    # Get generator output
     df_capacity_ratio = df.loc[:, df.columns.str.contains('Ratio of Capacity')]
     df_capacity_ratio.columns = df_capacity_ratio.columns.str.extract('(\d+)').astype(int)[0].tolist()
     df_capacity_ratio = df_capacity_ratio.transpose()
     ser_gen_capacity = pd.Series(df_gen_info['MATPOWER Capacity (MW)'].values, index=df_gen_info['MATPOWER Index'])
     df_gen_output = df_capacity_ratio.multiply(ser_gen_capacity, axis='index')
-    # Combine into fuel/cooling system type
+
+    # Combine into plants
     df_gen_output = df_gen_output.merge(df_gen_info, left_index=True, right_on='MATPOWER Index')
-    df_fuelcool_output_ratio = df_gen_output.groupby(['MATPOWER Fuel', '923 Cooling Type']).sum()
+    df_plant_capacity_ratio = df_gen_output.groupby(['Plant Name']).sum()
+
     # Get Ratio
-    df_fuelcool_output_ratio = df_fuelcool_output_ratio.iloc[:, 0:n_runs].divide(df_fuelcool_output_ratio['MATPOWER Capacity (MW)'], axis='index') # Hardcoded
+    df_plant_capacity_ratio = df_plant_capacity_ratio.iloc[:, 0:n_runs].divide(df_plant_capacity_ratio['MATPOWER Capacity (MW)'], axis='index') # Hardcoded
+
     # Combine with input factors
-    df_fuelcool_output_ratio = df_fuelcool_output_ratio.transpose()
-    df_fuelcool_output_ratio.columns = ['/'.join(col).strip() for col in df_fuelcool_output_ratio.columns.values]
-    df_fuelcool_output_ratio = df_fuelcool_output_ratio.join(df[factor_labs+obj_labs])
-    return df_fuelcool_output_ratio
+    df_plant_capacity_ratio = df_plant_capacity_ratio.transpose()
+    df_plant_capacity_ratio = df_plant_capacity_ratio.join(df[uniform_factor_labs+obj_labs])
+
+    # Get Cooling System Type
+    df_plant_capacity_ratio = pd.melt(df_plant_capacity_ratio, value_vars=plant_names,
+                                      id_vars=uniform_factor_labs + obj_labs, var_name='Plant Name', value_name='Output')
+    df_plant_capacity_ratio = df_plant_capacity_ratio.merge(
+        df_gen_info[['Plant Name', '923 Cooling Type', 'MATPOWER Fuel']])
+
+    return df_plant_capacity_ratio
 
 
-def get_gen_output_ratio_with_fuelcool(df, df_gen_info):
-    id_cols = ['MATPOWER Index', 'MATPOWER Fuel', '923 Cooling Type']
-    #  Get fuel/cooling type
-    df_capacity_ratio = df.loc[:, df.columns.str.contains('Ratio of Capacity')]  # Extract capacity ratios
-    df_capacity_ratio.columns = df_capacity_ratio.columns.str.extract('(\d+)').astype(int)[0].tolist()  # Change to numeric
-    df_capacity_ratio = df_capacity_ratio.transpose()
-    df_capacity_ratio = df_capacity_ratio.merge(df_gen_info[id_cols], left_index=True, right_on='MATPOWER Index')  # Get cooling system/fuel types
+def viz_effect_of_withdrawal_weight_plant_output(df, df_gen_info):
 
-    # Get Run information
-    df_capacity_ratio = df_capacity_ratio.melt(id_vars=id_cols, value_name='Generator Output', var_name='Run ID')
-    df_capacity_ratio = df_capacity_ratio.merge(df[factor_labs], left_on='Run ID', right_index=True)
-
-    # Combine Fuel/Cooling Types
-    df_capacity_ratio['Fuel/Cooling Type'] = df_capacity_ratio['MATPOWER Fuel'] + '/' + df_capacity_ratio['923 Cooling Type']
-    return df_capacity_ratio
-
-
-def viz_effect_of_withdrawal_weight_gen_output(df):
-    # Formatting
-    df['MATPOWER Index'] = df['MATPOWER Index'].astype('str')
-
-    # Subsetting Data
+    # Subsetting data
     df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
     withdrawal_criteria = [0.0, 0.1, 0.1]
     uniform_water_criteria = [0.5, 0.5, 1.5]
@@ -675,17 +667,16 @@ def viz_effect_of_withdrawal_weight_gen_output(df):
     case_c = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[2]) & (df['Uniform Water Coefficient'] == uniform_water_criteria[2])
     df = df[case_a | case_b | case_c]
 
-
-    # Creating Plot
+    # Making labels
     df['Withdrawal Weight ($/Gallon)'] = df['Withdrawal Weight ($/Gallon)'].astype('category')
-    df = df.sort_values(['Fuel/Cooling Type', 'Uniform Loading Coefficient'], ascending=False)
+    df['Fuel/Cooling Type'] = df['MATPOWER Fuel'] + '/' + df['923 Cooling Type']
     df['ID'] = '$w_{with}=$' + df['Withdrawal Weight ($/Gallon)'].astype(str) + ', $c_{water}=$' + df['Uniform Water Coefficient'].astype(str)
+
+    # Creating plot
     g = sns.FacetGrid(df, row='ID', col='Fuel/Cooling Type', aspect=1, sharex='col')
-    g.map_dataframe(sns.scatterplot, y='Generator Output', x='MATPOWER Index', hue='Uniform Loading Coefficient',
-                    size='Uniform Loading Coefficient', sizes=(20, 200), style='Withdrawal Weight ($/Gallon)', linewidth=0)
-    g.set_xticklabels(rotation=90)
+    g.map_dataframe(sns.lineplot, y='Output', x='Uniform Loading Coefficient', hue='Plant Name', style='Plant Name',
+                    markers=True)
     g.add_legend()
-    g.fig.subplots_adjust(wspace=.05, hspace=.05)
     for row in range(g.axes.shape[0]):
         for col in range(g.axes.shape[1]):
             if row == 0:
@@ -694,19 +685,18 @@ def viz_effect_of_withdrawal_weight_gen_output(df):
                 g.axes[row, col].set_title('')
 
             if col == 0:
-                g.axes[row, col].set_ylabel('Uniform Water Coefficient = '+str(uniform_water_criteria[row]))
+                g.axes[row, col].set_ylabel('Uniform Water Coefficient = '+str(uniform_water_criteria[row]) + '\nWithdrawal Weight ($/Gallon) = '+str(withdrawal_criteria[row]))
+    plt.tight_layout()
     plt.show()
+
     return g
 
 
 def uniform_sa_dataviz(df, uniform_factor_labs, obj_labs, df_gen_info_match_water):
-    fig_a = viz_effect_of_withdrawal_weight(df, uniform_factor_labs, obj_labs)
-    #df_capacity_ratio = get_gen_output_ratio_with_fuelcool(df, df_gen_info)
-    #viz_effect_of_withdrawal_weight_gen_output(df_capacity_ratio).fig.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Generator Output.pdf'))
-    return fig_a
-
-
-
+    #fig_a = viz_effect_of_withdrawal_weight(df, uniform_factor_labs, obj_labs)
+    df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info_match_water, uniform_factor_labs, obj_labs)
+    fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio, df_gen_info_match_water)
+    return fig_a, fig_b
 
 
 def fitSingleModels(df, obj_labs, factor_labs):
