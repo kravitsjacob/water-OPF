@@ -6,6 +6,15 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 
 
+def grid_setup(net):
+    # Dispatching all generators
+    net.sgen['in_service'] = True
+    net.gen['in_service'] = True
+    net.ext_grid['in_service'] = True
+
+    return net
+
+
 def generator_match(df_gen_info):
     # This is done manually through remotely sources images and spatial analysis
     manual_dict = {0: {'MATPOWER Index': 49,

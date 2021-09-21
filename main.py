@@ -23,11 +23,12 @@ pathto_figures = os.path.join(pathto_data, 'figures')
 
 def main():
 
-    # Converting matpower
+    # Setting up grid
     if os.path.exists(pathto_case):
         net = pandapower.from_pickle(pathto_case)  # Load checkpoint
     else:
         net = pandapower.converter.from_mpc(pathto_matpowercase)
+        net = src.grid_setup(net)
         print('Success: convert_matpower')
         pandapower.to_pickle(net, pathto_case)  # Save checkpoint
 
