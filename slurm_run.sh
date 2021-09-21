@@ -14,5 +14,5 @@
 
 module purge
 source /curc/sw/anaconda3/2019.07/bin/activate
-conda activate grid_optimization
+conda activate water-OPF
 python -u main.py '/scratch/summit/jakr3868/water-OPF-v1.0/' 24
