@@ -562,7 +562,7 @@ def waterOPF(ser_exogenous, t, results_labs, net, df_geninfo):
     except:
         state = 'not converge'
     # Output Depended on State
-    if state is 'converge':
+    if state == 'converge':
         # Extract internal decisions (power output)
         for type in ['gen', 'sgen', 'ext_grid']:
             idxs = df_geninfo.index[df_geninfo['PANDAPOWER Bus Type'] == type]
@@ -575,7 +575,7 @@ def waterOPF(ser_exogenous, t, results_labs, net, df_geninfo):
         F_con = (df_geninfo['Power Output (MW)'] * df_geninfo['Consumption Rate (Gallon/MW)']).sum()
         F_cos = F_gen + ser_exogenous['Withdrawal Weight ($/Gallon)']*F_with + ser_exogenous['Consumption Weight ($/Gallon)']*F_con
         internal_decs = df_geninfo['Ratio of Capacity'].to_list()
-    elif state is 'not converge':
+    elif state == 'not converge':
         F_cos = F_with = F_con = F_gen = np.nan
         internal_decs = [np.nan]*len(df_geninfo)
     return pd.Series([F_cos, F_gen, F_with, F_con] + internal_decs, index=results_labs)
