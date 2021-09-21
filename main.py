@@ -87,6 +87,10 @@ def main():
     return 0
 
 
+    # Enter data viz here
+
+    filenames = ['Total Cost (Dollar) Tree', 'Generator Cost (Dollar) Tree', 'Water Withdrawal (Gallon) Tree', 'Water Consumption (Gallon) Tree']
+
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     main()

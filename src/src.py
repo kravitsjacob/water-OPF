@@ -606,6 +606,8 @@ def uniform_sa(df_gen_info_match_water, net, n_tasks, uniform_factor_labs, obj_l
     print('Success: Grid Searched')
     return df_uniform
 
+# Insert viz here
+
 
 def fitSingleModels(df, obj_labs, factor_labs):
     mods = {}
@@ -631,10 +633,8 @@ def dtreeViz(mods, df, filenames, uniform_factor_labs, pathto_figures):
     return 0
 
 
-def uniform_sa_tree():
-    df = df.rename({'Uniform Loading Factor': 'Uniform Loading Coefficient', 'Uniform Water Factor': 'Uniform Water Coefficient'}, axis=1)
+def uniform_sa_tree(df, obj_labs, uniform_factor_labs, filenames, pathto_figures):
     mods = fitSingleModels(df, obj_labs, uniform_factor_labs)
-    filenames = ['Total Cost (Dollar) Tree', 'Generator Cost (Dollar) Tree', 'Water Withdrawal (Gallon) Tree', 'Water Consumption (Gallon) Tree']
-    dtreeViz(mods, df, filenames, factor_labs, pathto_figures)
+    dtreeViz(mods, df, filenames, uniform_factor_labs, pathto_figures)
     return 0
 
