@@ -5,14 +5,23 @@ import src
 
 import pandapower.converter
 import pandas as pd
+import multiprocessing
+
+
+if len(sys.argv) > 1:
+    pathto_data = sys.argv[1]
+    n_tasks = int(sys.argv[2])
+else:
+    pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v1.0'
+    n_tasks = os.cpu_count()
 
 
 # Paths for checkpoints
-pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v1.0'
 pathto_case = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.p')
 pathto_geninfo = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'gen_info.csv')
 pathto_geninfo_match = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'gen_info_match.csv')
 pathto_h5 = os.path.join(pathto_data, 'temp', 'processing_data.h5')
+pathto_uniform_sa = os.path.join(pathto_data, 'temp', 'uniform_sa_results.csv')
 
 # Paths for external Inputs
 pathto_EIA = 'G:\My Drive\Documents (Stored)\data_sets\EIA_theremoelectric_water_use'
@@ -70,9 +79,17 @@ def main():
         df_gen_info_match_water.to_hdf(pathto_h5, key='df_gen_info_match_water', mode='a')  # Save checkpoint
         df_hnwc.to_hdf(pathto_h5, key='df_hnwc', mode='a')  # Save checkpoint
 
+
+    # Uniform SA
+    if os.path.exists(pathto_uniform_sa):
+        df_uniform = pd.read_csv(pathto_uniform_sa)  # Load Checkpoint
+    else:
+        df_uniform = src.uniform_sa(df_gen_info_match_water, net, n_tasks)
+        df_uniform.to_csv(pathto_uniform_sa, index=False)
     return 0
 
 
 if __name__ == '__main__':
+    multiprocessing.freeze_support()
     main()
 
