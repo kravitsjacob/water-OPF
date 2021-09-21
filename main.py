@@ -18,10 +18,10 @@ else:
 
 # Paths for checkpoints
 pathto_case = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.p')
-pathto_gen_info_match = os.path.join(pathto_data, 'temp', 'gen_info_match.h5')
-pathto_gen_info_match_water = os.path.join(pathto_data, 'temp', 'gen_info_match_water.h5')
+pathto_gen_info_match = os.path.join(pathto_data, 'temp', 'gen_info_match.csv')
+pathto_gen_info_match_water = os.path.join(pathto_data, 'temp', 'gen_info_match_water.csv')
 pathto_EIA = os.path.join(pathto_data, 'temp', 'EIA.h5')
-pathto_hnwc = os.path.join(pathto_data, 'temp', 'hnwc.h5')
+pathto_hnwc = os.path.join(pathto_data, 'temp', 'hnwc.csv')
 
 pathto_uniform_sa = os.path.join(pathto_data, 'temp', 'uniform_sa_results.csv')
 
@@ -46,17 +46,17 @@ def main():
 
     # Manual generator matching
     if os.path.exists(pathto_gen_info_match):
-        df_gen_info_match = pd.read_hdf(pathto_gen_info_match, 'df_gen_info_match')  # Load checkpoint
+        df_gen_info_match = pd.read_csv(pathto_gen_info_match)  # Load checkpoint
     else:
         df_gen_info = pd.read_csv(pathto_geninfo)
         df_gen_info_match = src.generator_match(df_gen_info)
         print('Success: generator_match')
-        df_gen_info_match.to_hdf(pathto_gen_info_match, key='df_gen_info_match', mode='w')  # Save checkpoint
+        df_gen_info_match.to_csv(pathto_gen_info_match, index=False)  # Save checkpoint
 
     # Cooling system information
     if os.path.exists(pathto_gen_info_match_water):
-        df_gen_info_match_water = pd.read_hdf(pathto_gen_info_match_water, 'df_gen_info_match_water')  # Load checkpoint
-        df_hnwc = pd.read_hdf(pathto_hnwc, 'df_hnwc')  # Load checkpoint
+        df_gen_info_match_water = pd.read_csv(pathto_gen_info_match_water)  # Load checkpoint
+        df_hnwc = pd.read_csv(pathto_hnwc)  # Load checkpoint
     else:
         # Import EIA data
         if os.path.exists(pathto_EIA):
@@ -72,8 +72,8 @@ def main():
         fig_regionBoxPlotter.savefig(os.path.join(pathto_figures, 'region water boxplots.pdf'))
         fig_coalPlotter.savefig(os.path.join(pathto_figures, 'coal scatter kmeans.pdf'))
         fig_hnwc_plotter.savefig(os.path.join(pathto_figures, 'historic nonuniform water coefficient histograms.pdf'))
-        df_gen_info_match_water.to_hdf(pathto_gen_info_match_water, key='df_gen_info_match_water', mode='w')  # Save checkpoint
-        df_hnwc.to_hdf(pathto_hnwc, key='df_hnwc', mode='w')  # Save checkpoint
+        df_gen_info_match_water.to_csv(pathto_gen_info_match_water, index=False)  # Save checkpoint
+        df_hnwc.to_csv(pathto_hnwc, index=False)  # Save checkpoint
 
 
     # Uniform SA
@@ -88,4 +88,3 @@ def main():
 if __name__ == '__main__':
     multiprocessing.freeze_support()
     main()
-
