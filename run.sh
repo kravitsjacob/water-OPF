@@ -15,3 +15,6 @@ matlab -nojvm -r 'to_MATPOWER; exit;'
 cd ..
 
 python main.py
+
+# Export Environment
+conda env export --no-builds --from-history > water-OPF.yml

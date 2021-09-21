@@ -1,0 +1,15 @@
+name: water-OPF
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pandas
+  - pandapower
+  - scikit-learn
+  - seaborn
+  - dask
+  - svglib
+  - reportlab
+  - pytables
+prefix: C:\Users\kravi\.conda\envs\water-OPF
