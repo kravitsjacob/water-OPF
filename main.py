@@ -86,7 +86,10 @@ def main():
         df_uniform = src.uniform_sa(df_gen_info_match_water, net, n_tasks, 10, uniform_factor_labs, obj_labs)
         df_uniform.to_csv(pathto_uniform_sa, index=False)
 
-    # Enter data viz here
+    # Uniform SA Data Viz
+    if not os.path.exists(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawal.pdf')):
+        fig_a = src.uniform_sa_dataviz(df_uniform, uniform_factor_labs, obj_labs, df_gen_info_match_water)
+        fig_a.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawal.pdf'))
 
     # Uniform SA Trees
     if not os.path.exists(os.path.join(pathto_figures, 'Total Cost (Dollar) Tree.pdf')):
