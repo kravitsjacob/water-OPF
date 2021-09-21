@@ -33,6 +33,10 @@ pathto_geninfo = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'gen_info.c
 pathto_figures = os.path.join(pathto_data, 'figures')
 
 def main():
+    # Initialize vars
+    uniform_factor_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)',
+                           'Uniform Loading Coefficient', 'Uniform Water Coefficient']
+    obj_labs = ['Total Cost ($)', 'Generator Cost ($)',	'Water Withdrawal (Gallon)', 'Water Consumption (Gallon)']
 
     # Setting up grid
     if os.path.exists(pathto_case):
@@ -78,7 +82,7 @@ def main():
     if os.path.exists(pathto_uniform_sa):
         df_uniform = pd.read_csv(pathto_uniform_sa)  # Load Checkpoint
     else:
-        df_uniform = src.uniform_sa(df_gen_info_match_water, net, n_tasks)
+        df_uniform = src.uniform_sa(df_gen_info_match_water, net, n_tasks, uniform_factor_labs, obj_labs)
         df_uniform.to_csv(pathto_uniform_sa, index=False)
     return 0
 

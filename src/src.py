@@ -480,19 +480,19 @@ def getSearch(df_gridspecs, df_geninfo, net, exogenous_labs):
     w_con_vals = np.linspace(df_gridspecs['Min']['Consumption Weight ($/Gallon)'],
                              df_gridspecs['Max']['Consumption Weight ($/Gallon)'],
                              df_gridspecs['Number of Steps']['Withdrawal Weight ($/Gallon)'])
-    c_load_vals = np.linspace(df_gridspecs['Min']['Uniform Loading Factor'],
-                              df_gridspecs['Max']['Uniform Loading Factor'],
-                              df_gridspecs['Number of Steps']['Uniform Loading Factor'])
-    c_water_vals = np.linspace(df_gridspecs['Min']['Uniform Water Factor'],
-                               df_gridspecs['Max']['Uniform Water Factor'],
-                               df_gridspecs['Number of Steps']['Uniform Water Factor'])
+    c_load_vals = np.linspace(df_gridspecs['Min']['Uniform Loading Coefficient'],
+                              df_gridspecs['Max']['Uniform Loading Coefficient'],
+                              df_gridspecs['Number of Steps']['Uniform Loading Coefficient'])
+    c_water_vals = np.linspace(df_gridspecs['Min']['Uniform Water Coefficient'],
+                               df_gridspecs['Max']['Uniform Water Coefficient'],
+                               df_gridspecs['Number of Steps']['Uniform Water Coefficient'])
     # Create Grid
     df_search = pd.DataFrame(list(itertools.product(w_with_vals, w_con_vals, c_load_vals, c_water_vals)), columns=df_gridspecs.index)
     # Multiply exogenous parameters
     beta_with = df_geninfo['Median Withdrawal Rate (Gallon/kWh)'].values
     beta_con = df_geninfo['Median Consumption Rate (Gallon/kWh)'].values
     beta_load = net.load['p_mw'].values
-    df_exogenous = df_search.apply(lambda row: uniformFactorMultiply(row['Uniform Water Factor'], row['Uniform Loading Factor'], beta_with, beta_con, beta_load, exogenous_labs), axis=1)
+    df_exogenous = df_search.apply(lambda row: uniformFactorMultiply(row['Uniform Water Coefficient'], row['Uniform Loading Coefficient'], beta_with, beta_con, beta_load, exogenous_labs), axis=1)
     # Combine
     df_search = pd.concat([df_search, df_exogenous], axis=1)
     return df_search
@@ -581,17 +581,15 @@ def waterOPF(ser_exogenous, t, results_labs, net, df_geninfo):
     return pd.Series([F_cos, F_gen, F_with, F_con] + internal_decs, index=results_labs)
 
 
-def uniform_sa(df_gen_info_match_water, net, n_tasks):
+def uniform_sa(df_gen_info_match_water, net, n_tasks, uniform_factor_labs, obj_labs):
     # Initialize
     exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)'] + \
                      ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Withdrawal Rate (Gallon/kWh)').tolist() + \
                      ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Consumption Rate (Gallon/kWh)').tolist() + \
                      ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
-    inputfactor_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)', 'Uniform Loading Factor', 'Uniform Water Factor']
-    results_labs = ['Total Cost ($)', 'Generator Cost ($)', 'Water Withdrawal (Gallon)', 'Water Consumption (Gallon)'] + \
-                   ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Ratio of Capacity').to_list()
+    results_labs = obj_labs + ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Ratio of Capacity').to_list()
     df_gridspecs = pd.DataFrame(data=[[0.0, 0.1, 10], [0.0, 1.0, 10], [1.0, 1.5, 10], [0.5, 1.5, 10]],
-                                index=inputfactor_labs, columns=['Min', 'Max', 'Number of Steps'])
+                                index=uniform_factor_labs, columns=['Min', 'Max', 'Number of Steps'])
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
     print('Success: Initialized')
     # Get Pandapower indices
