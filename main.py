@@ -2,10 +2,11 @@ import sys
 sys.path.insert(0, 'src')
 import os
 import src
+import multiprocessing
 
 import pandapower.converter
 import pandas as pd
-import multiprocessing
+
 
 
 if len(sys.argv) > 1:

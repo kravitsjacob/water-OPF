@@ -1,5 +1,6 @@
 import os
 import copy
+import itertools
 
 import pandas as pd
 import numpy as np
@@ -8,7 +9,6 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 import dask.dataframe as dd
 import pandapower as pp
-import itertools
 
 
 def grid_setup(net):
