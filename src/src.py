@@ -581,14 +581,14 @@ def waterOPF(ser_exogenous, t, results_labs, net, df_geninfo):
     return pd.Series([F_cos, F_gen, F_with, F_con] + internal_decs, index=results_labs)
 
 
-def uniform_sa(df_gen_info_match_water, net, n_tasks, uniform_factor_labs, obj_labs):
+def uniform_sa(df_gen_info_match_water, net, n_tasks, n_steps, uniform_factor_labs, obj_labs):
     # Initialize
     exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)'] + \
                      ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Withdrawal Rate (Gallon/kWh)').tolist() + \
                      ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Consumption Rate (Gallon/kWh)').tolist() + \
                      ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
     results_labs = obj_labs + ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Ratio of Capacity').to_list()
-    df_gridspecs = pd.DataFrame(data=[[0.0, 0.1, 10], [0.0, 1.0, 10], [1.0, 1.5, 10], [0.5, 1.5, 10]],
+    df_gridspecs = pd.DataFrame(data=[[0.0, 0.1, n_steps], [0.0, 1.0, n_steps], [1.0, 1.5, n_steps], [0.5, 1.5, n_steps]],
                                 index=uniform_factor_labs, columns=['Min', 'Max', 'Number of Steps'])
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
     print('Success: Initialized')

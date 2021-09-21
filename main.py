@@ -82,7 +82,7 @@ def main():
     if os.path.exists(pathto_uniform_sa):
         df_uniform = pd.read_csv(pathto_uniform_sa)  # Load Checkpoint
     else:
-        df_uniform = src.uniform_sa(df_gen_info_match_water, net, n_tasks, uniform_factor_labs, obj_labs)
+        df_uniform = src.uniform_sa(df_gen_info_match_water, net, n_tasks, 10, uniform_factor_labs, obj_labs)
         df_uniform.to_csv(pathto_uniform_sa, index=False)
     return 0
 
