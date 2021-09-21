@@ -609,3 +609,34 @@ def uniform_sa(df_gen_info_match_water, net, n_tasks):
     return df_uniform
 
 
+def fitSingleModels(df, obj_labs, factor_labs):
+    mods = {}
+    for i in obj_labs:
+        clf = tree.DecisionTreeRegressor(random_state=1008, max_depth=5, max_leaf_nodes=12)
+        mods[i] = clf.fit(X=df[factor_labs], y=df[i])
+    return mods
+
+
+def dtreeViz(mods, df, filenames, uniform_factor_labs, pathto_figures):
+    for index, key in enumerate(mods):
+        viz = dtreeviz(mods[key],
+                       df[uniform_factor_labs],
+                       df[key],
+                       target_name=key,
+                       feature_names=uniform_factor_labs,
+                       orientation='LR')
+        viz.save(filenames[index]+'.svg')
+        drawing = svg2rlg(filenames[index]+'.svg')
+        renderPDF.drawToFile(drawing, os.path.join(pathto_figures, filenames[index]+'.pdf'))
+        os.remove(filenames[index]+'.svg')
+        os.remove(filenames[index])
+    return 0
+
+
+def uniform_sa_tree():
+    df = df.rename({'Uniform Loading Factor': 'Uniform Loading Coefficient', 'Uniform Water Factor': 'Uniform Water Coefficient'}, axis=1)
+    mods = fitSingleModels(df, obj_labs, uniform_factor_labs)
+    filenames = ['Total Cost (Dollar) Tree', 'Generator Cost (Dollar) Tree', 'Water Withdrawal (Gallon) Tree', 'Water Consumption (Gallon) Tree']
+    dtreeViz(mods, df, filenames, factor_labs, pathto_figures)
+    return 0
+
