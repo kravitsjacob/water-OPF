@@ -6,6 +6,7 @@ import multiprocessing
 
 import pandapower.converter
 import pandas as pd
+from reportlab.graphics import renderPDF
 
 
 if len(sys.argv) > 1:
@@ -84,12 +85,18 @@ def main():
     else:
         df_uniform = src.uniform_sa(df_gen_info_match_water, net, n_tasks, 10, uniform_factor_labs, obj_labs)
         df_uniform.to_csv(pathto_uniform_sa, index=False)
-    return 0
-
 
     # Enter data viz here
 
-    filenames = ['Total Cost (Dollar) Tree', 'Generator Cost (Dollar) Tree', 'Water Withdrawal (Gallon) Tree', 'Water Consumption (Gallon) Tree']
+    # Uniform SA Trees
+    if not os.path.exists(os.path.join(pathto_figures, 'Total Cost (Dollar) Tree.pdf')):
+        drawing_ls = src.uniform_sa_tree(df_uniform, obj_labs, uniform_factor_labs)
+        renderPDF.drawToFile(drawing_ls[0], os.path.join(pathto_figures, 'Total Cost (Dollar) Tree.pdf'))
+        renderPDF.drawToFile(drawing_ls[1], os.path.join(pathto_figures, 'Generator Cost (Dollar) Tree'))
+        renderPDF.drawToFile(drawing_ls[2], os.path.join(pathto_figures, 'Water Withdrawal (Gallon) Tree'))
+        renderPDF.drawToFile(drawing_ls[3], os.path.join(pathto_figures, 'Water Consumption (Gallon) Tree'))
+    return 0
+
 
 if __name__ == '__main__':
     multiprocessing.freeze_support()

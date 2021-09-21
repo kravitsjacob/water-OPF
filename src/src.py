@@ -11,7 +11,7 @@ import dask.dataframe as dd
 import pandapower as pp
 from dtreeviz.trees import *  # Requires pip version
 from svglib.svglib import svg2rlg
-from reportlab.graphics import renderPDF
+
 
 
 def grid_setup(net):
@@ -617,24 +617,24 @@ def fitSingleModels(df, obj_labs, factor_labs):
     return mods
 
 
-def dtreeViz(mods, df, filenames, uniform_factor_labs, pathto_figures):
-    for index, key in enumerate(mods):
+def dtreeViz(mods, df, uniform_factor_labs):
+    drawing_ls = []
+    for key in mods:
         viz = dtreeviz(mods[key],
                        df[uniform_factor_labs],
                        df[key],
                        target_name=key,
                        feature_names=uniform_factor_labs,
                        orientation='LR')
-        viz.save(filenames[index]+'.svg')
-        drawing = svg2rlg(filenames[index]+'.svg')
-        renderPDF.drawToFile(drawing, os.path.join(pathto_figures, filenames[index]+'.pdf'))
-        os.remove(filenames[index]+'.svg')
-        os.remove(filenames[index])
-    return 0
+        viz.save('temp.svg')
+        drawing_ls.append(svg2rlg('temp.svg'))
+        os.remove('temp.svg')
+        os.remove('temp')
+    return drawing_ls
 
 
-def uniform_sa_tree(df, obj_labs, uniform_factor_labs, filenames, pathto_figures):
+def uniform_sa_tree(df, obj_labs, uniform_factor_labs):
     mods = fitSingleModels(df, obj_labs, uniform_factor_labs)
-    dtreeViz(mods, df, filenames, uniform_factor_labs, pathto_figures)
-    return 0
+    drawing_ls = dtreeViz(mods, df, uniform_factor_labs)
+    return drawing_ls
 
