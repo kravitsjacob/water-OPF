@@ -22,7 +22,6 @@ pathto_gen_info_match = os.path.join(pathto_data, 'temp', 'gen_info_match.csv')
 pathto_gen_info_match_water = os.path.join(pathto_data, 'temp', 'gen_info_match_water.csv')
 pathto_EIA = os.path.join(pathto_data, 'temp', 'EIA.h5')
 pathto_hnwc = os.path.join(pathto_data, 'temp', 'hnwc.csv')
-
 pathto_uniform_sa = os.path.join(pathto_data, 'temp', 'uniform_sa_results.csv')
 
 # Paths for external Inputs
@@ -74,7 +73,6 @@ def main():
         fig_hnwc_plotter.savefig(os.path.join(pathto_figures, 'historic nonuniform water coefficient histograms.pdf'))
         df_gen_info_match_water.to_csv(pathto_gen_info_match_water, index=False)  # Save checkpoint
         df_hnwc.to_csv(pathto_hnwc, index=False)  # Save checkpoint
-
 
     # Uniform SA
     if os.path.exists(pathto_uniform_sa):
