@@ -9,6 +9,9 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 import dask.dataframe as dd
 import pandapower as pp
+from dtreeviz.trees import *  # Requires pip version
+from svglib.svglib import svg2rlg
+from reportlab.graphics import renderPDF
 
 
 def grid_setup(net):
@@ -604,3 +607,5 @@ def uniform_sa(df_gen_info_match_water, net, n_tasks):
     df_uniform.drop_duplicates()  # Sometimes the parallel jobs replicate rows
     print('Success: Grid Searched')
     return df_uniform
+
+

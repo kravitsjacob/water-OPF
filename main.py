@@ -8,7 +8,6 @@ import pandapower.converter
 import pandas as pd
 
 
-
 if len(sys.argv) > 1:
     pathto_data = sys.argv[1]
     n_tasks = int(sys.argv[2])
