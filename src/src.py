@@ -917,3 +917,46 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
     df_nonuniform_sobol = pd.concat(sobol_ls, ignore_index=True)
 
     return df_nonuniform, df_nonuniform_sobol
+
+
+def draw_heatmap(*args, **kwargs):
+    data = kwargs.pop('data')
+    data = data.set_index('Objective')
+    data.columns = [i.split(' Non-Uniform Water Coefficient')[:][0] for i in data.columns]
+    return sns.heatmap(data.iloc[:, :-1], **kwargs)
+
+
+def nonuniform_sobol_viz(df_sobol):
+    # Filter
+    df_sobol[df_sobol._get_numeric_data() < -0.1] = np.nan  # Invalid Index
+
+    # Plot
+    g = sns.FacetGrid(df_sobol, col='Operational Scenario', height=5.5, aspect=0.6, sharey=True)
+    cbar_ax = g.fig.add_axes([.87, .15, .03, .7])
+    g.map_dataframe(draw_heatmap, cmap='viridis', cbar_ax=cbar_ax, cbar_kws={'label': 'First Order Sobol Index Value'})
+    g.fig.subplots_adjust(top=0.6, right=0.85)
+    g.set_titles(rotation=90)
+    axes = g.axes.flatten()
+    axes[0].set_title('Normal loading with \n traditional OPF (BAU policy)')
+    axes[1].set_title('Heatwave with traditional \n OPF (BAU policy)')
+    axes[2].set_title('Heatwave with aggressive  \n withdrawal policy')
+    axes[3].set_title('Heatwave with aggressive \n consumption policy')
+    plt.show()
+
+    return g
+
+
+def historic_load_viz(df):
+
+    # Formatting
+    df = df.rename({'ActualLoad': 'Actual Load (MW)'}, axis='columns')
+    df['Uniform Loading Coefficient'] = df['Actual Load (MW)'] / df['Actual Load (MW)'].median()
+
+    # Plot
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twiny()
+    sns.histplot(data=df, x='Actual Load (MW)', ax=ax1)
+    sns.histplot(data=df, x='Uniform Loading Coefficient', ax=ax2)
+    plt.tight_layout()
+    plt.show()
+    return fig

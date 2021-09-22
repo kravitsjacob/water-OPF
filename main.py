@@ -31,6 +31,8 @@ pathto_nonuniform_sa_sobol = os.path.join(pathto_data, 'temp', 'nonuniform_sa_so
 pathto_EIA_raw = 'G:\My Drive\Documents (Stored)\data_sets\EIA_theremoelectric_water_use'
 pathto_matpowercase = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.mat')
 pathto_geninfo = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'gen_info.csv')
+pathto_load = os.path.join('G:\My Drive\Documents (Stored)\data_sets\load exogenous parameter testing V1 io',
+                           '20180101-20200101 MISO Forecasted Cleared & Actual Load.csv')
 
 # Paths for figures
 pathto_figures = os.path.join(pathto_data, 'figures')
@@ -105,11 +107,22 @@ def main():
     # Nonuniform SA
     if os.path.exists(pathto_nonuniform_sa_sobol):
         df_nonuniform = pd.read_csv(pathto_nonuniform_sa)
-        df_nonuniform_sobol = pd.read_csv(pathto_nonuniform_sa)
+        df_nonuniform_sobol = pd.read_csv(pathto_nonuniform_sa_sobol)
     else:
         df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_gen_info_match_water, df_hnwc, obj_labs, n_tasks, net)
         df_nonuniform.to_csv(pathto_nonuniform_sa, index=False)
         df_nonuniform_sobol.to_csv(pathto_nonuniform_sa_sobol, index=False)
+
+    # Sobol Visualization
+    if not os.path.exists(os.path.join(pathto_figures, 'First Order Heatmap.pdf')):
+        nonuniform_sobol_fig = src.nonuniform_sobol_viz(df_nonuniform_sobol)
+        nonuniform_sobol_fig.fig.savefig(os.path.join(pathto_figures, 'First Order Heatmap.pdf'))
+
+    # Historic Load Generation
+    if not os.path.exists(os.path.join(pathto_figures, 'Load Distribution.pdf')):
+        df_historic_loads = pd.read_csv(pathto_load)
+        src.historic_load_viz(df_historic_loads).savefig(os.path.join(pathto_figures, 'Load Distribution.pdf'))
+
     return 0
 
 
