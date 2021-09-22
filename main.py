@@ -24,6 +24,8 @@ pathto_gen_info_match_water = os.path.join(pathto_data, 'temp', 'gen_info_match_
 pathto_EIA = os.path.join(pathto_data, 'temp', 'EIA.h5')
 pathto_hnwc = os.path.join(pathto_data, 'temp', 'hnwc.csv')
 pathto_uniform_sa = os.path.join(pathto_data, 'temp', 'uniform_sa_results.csv')
+pathto_nonuniform_sa = os.path.join(pathto_data, 'temp', 'nonuniform_sa_results.csv')
+pathto_nonuniform_sa_sobol = os.path.join(pathto_data, 'temp', 'nonuniform_sa_sobol.csv')
 
 # Paths for external Inputs
 pathto_EIA_raw = 'G:\My Drive\Documents (Stored)\data_sets\EIA_theremoelectric_water_use'
@@ -99,6 +101,14 @@ def main():
         renderPDF.drawToFile(drawing_ls[1], os.path.join(pathto_figures, 'Generator Cost (Dollar) Tree.pdf'))
         renderPDF.drawToFile(drawing_ls[2], os.path.join(pathto_figures, 'Water Withdrawal (Gallon) Tree.pdf'))
         renderPDF.drawToFile(drawing_ls[3], os.path.join(pathto_figures, 'Water Consumption (Gallon) Tree.pdf'))
+
+    # Nonuniform SA
+    if os.path.exists(pathto_nonuniform_sa_sobol):
+        a = 1
+    else:
+        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_gen_info_match_water, df_hnwc, obj_labs, net)
+        df_nonuniform.to_csv(pathto_nonuniform_sa, index=False)
+        df_nonuniform_sobol.to_csv(pathto_nonuniform_sa, index=False)
     return 0
 
 

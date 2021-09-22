@@ -370,12 +370,12 @@ def getGeneratorWaterData(df_region, df_geninfo):
     return df_geninfo, df_region
 
 
-def get_historic_nonuniform_water_coefficients(df_region):
+def get_historic_nonuniform_water_coefficients(df_region, df_gen_info_match_water):
     df_region['Uniform Water Coefficient Consumption'] = df_region['Withdrawal Rate (Gallon/kWh)'] / df_region['Withdrawal Rate (Gallon/kWh) Median']
     df_region['Uniform Water Coefficient Withdrawal'] = df_region['Consumption Rate (Gallon/kWh)'] / df_region['Consumption Rate (Gallon/kWh) Median']
     df = df_region.melt(value_vars=['Uniform Water Coefficient Consumption', 'Uniform Water Coefficient Withdrawal'],
                       id_vars=['923 Cooling Type', 'Fuel Type'], var_name='Exogenous Parameter')
-    df['Input Factor'] = 'C water ' + df['Fuel Type'] + ' ' + df['923 Cooling Type']
+    df['Fuel/Cooling Type'] = df['Fuel Type'] + '/' + df['923 Cooling Type']
     df = df.drop('Exogenous Parameter', axis=1)
     df = df.sort_values('Fuel Type')
     return df
@@ -407,14 +407,25 @@ def regionBoxPlotter(df):
     return g
 
 
-def hnwc_plotter(df):
-    g = sns.FacetGrid(df, col='Input Factor', col_wrap=2, sharex=False, sharey=False, aspect=1.5)
+def hnwc_plotter(df, df_gen_info):
+
+    # Titles
+    df_titles = df_gen_info.sort_values('MATPOWER Fuel')
+    df_titles['Fuel/Cooling Type'] = df_titles['MATPOWER Fuel'] + '/' + df_titles['923 Cooling Type']
+    df_titles = df_titles.groupby('Fuel/Cooling Type')['Plant Name'].apply(set).reset_index(name='Plants')
+    df_titles['Grouped Plants'] = df_titles.apply(
+        lambda row: 'Plant ID: ' + ", ".join([item for subitem in row['Plants'] for item in subitem.split() if item.isdigit()]),
+        axis=1
+    )
+    df_titles['Title'] = df_titles['Fuel/Cooling Type'] + ' (' + df_titles['Grouped Plants'] + ')'
+
+    # Plotting
+    g = sns.FacetGrid(df, col='Fuel/Cooling Type', col_wrap=2, sharex=False, sharey=False, aspect=1.5)
     g.map(sns.histplot, 'value', stat='density')
-    g.axes[0].set_title('$C_{water,coal,induced-recirculating}$')
-    g.axes[1].set_title('$C_{water,coal,recirculating}$')
-    g.axes[2].set_title('$C_{water,coal,once-through}$')
-    g.axes[3].set_title('$C_{water,natural-gas,induced-recirculating}$')
-    g.axes[4].set_title('$C_{water,nuclear,recirculating}$')
+    for ax in g.axes:
+        fuel_cool = ax.get_title().split('Fuel/Cooling Type = ', 1)[1]
+        ax.set_title(df_titles[df_titles['Fuel/Cooling Type'] == fuel_cool]['Title'].values[0])
+    g.set_xlabels('Non-Uniform Water Coefficient')
     plt.show()
     return g
 
@@ -456,13 +467,13 @@ def cooling_system_information(df_gen_info_match, df_EIA):
     df_gen_info_match_water['Median Consumption Rate (Gallon/kWh)'] = df_gen_info_match_water.apply(lambda row: np.median(row['Consumption Rate Cluster Data (Gallon/kWh)']), axis=1)
 
     # Get historic nonuniform water coefficients
-    df_hnwc = get_historic_nonuniform_water_coefficients(df_region)
+    df_hnwc = get_historic_nonuniform_water_coefficients(df_region, df_gen_info_match_water)
 
     # Plotting
     fig_regionDistribututionPlotter = regionDistribututionPlotter(df_region).figure
     fig_regionBoxPlotter = regionBoxPlotter(df_region).fig
     fig_coalPlotter = coalPlotter(df_region).fig
-    fig_hnwc_plotter = hnwc_plotter(df_hnwc).fig
+    fig_hnwc_plotter = hnwc_plotter(df_hnwc, df_gen_info_match_water).fig
 
     return df_gen_info_match_water, df_hnwc, fig_regionDistribututionPlotter, fig_regionBoxPlotter, fig_coalPlotter, fig_hnwc_plotter
 
@@ -736,3 +747,144 @@ def uniform_sa_tree(df, obj_labs, uniform_factor_labs):
     mods = fitSingleModels(df, obj_labs, uniform_factor_labs)
     drawing_ls = dtreeViz(mods, df, uniform_factor_labs)
     return drawing_ls
+
+
+def generate_nonuniform_samples(n_sample, df_gen_info_match_water, df_hnwc):
+
+    a = df_gen_info_match_water[['Plant Name', '923 Cooling Type', 'MATPOWER Fuel']].merge(df_hnwc)
+    # Sampling
+    replace = True  # with replacement
+    n_inputs_factors = len(df_hnwc['Input Factor'].unique())
+    fn = lambda obj: obj.loc[np.random.choice(obj.index, n_sample, replace), :]
+    df_sample = df_hnwc.groupby('Input Factor', as_index=False).apply(fn)
+    df_sample['Sample Index'] = np.tile(np.arange(0, n_sample), n_inputs_factors)
+    df_sample = df_sample.reset_index().pivot(columns='Input Factor', values='value', index='Sample Index')
+    return df_sample
+
+
+def nonuniform_factor_multiply(ser_c_water, c_load, exogenous_labs, net, df_geninfo):
+    df_geninfo = df_geninfo.merge(ser_c_water, left_on=['MATPOWER Fuel', '923 Cooling Type'], right_index=True, how='left')
+    df_geninfo.iloc[:, -1].fillna(0, inplace=True)  # Joined column will always be last
+    beta_load = net.load['p_mw'].values * c_load
+    beta_with = (df_geninfo['Median Withdrawal Rate (Gallon/kWh)'] * df_geninfo.iloc[:,-1]).values
+    beta_con = (df_geninfo['Median Consumption Rate (Gallon/kWh)'] * df_geninfo.iloc[:,-1]).values
+    vals = np.concatenate((beta_with, beta_con, beta_load))
+    idxs = exogenous_labs[2:]
+    return pd.Series(vals, index=idxs)
+
+
+def get_nonuniform_exogenous(df_sample, df_hnwc, w_with, w_con, c_load, df_geninfo, net, exogenous_labs):
+    # Formatting
+    df_unique = df_hnwc.groupby(['Fuel Type', '923 Cooling Type']).size().reset_index()[['Fuel Type', '923 Cooling Type']]
+    multiindex_columns = pd.MultiIndex.from_frame(df_unique)
+    df_sample_multi = pd.DataFrame(df_sample.values, columns=multiindex_columns)
+
+    # Multiply exogenous parameters
+    df_exogenous = df_sample_multi.apply(lambda row: nonuniform_factor_multiply(row, c_load, exogenous_labs, net, df_geninfo), axis=1)
+
+    # Combine
+    df_sample['Withdrawal Weight ($/Gallon)'] = w_with
+    df_sample['Consumption Weight ($/Gallon)'] = w_con
+    df_exogenous = pd.concat([df_sample, df_exogenous], axis=1)
+    return df_exogenous
+
+
+def MGSA_FirstOrder(Input, Output, ndomain):
+    '''
+    input: nsample * nd matrix, where nsample is the number of sample, and nd
+    is the input dimension
+    output: nsample * 1 array
+    ndomain: number of sub-domain the to divide a single input
+    This algorithm is proposed by me. Please cite the following paper if you use this code.
+    Li, Chenzhao, and Sankaran Mahadevan. "An efficient modularized sample-based method to estimate the first-order Sobol’index." Reliability Engineering & System Safety (2016).
+
+    TODO before publishing, make sure this is just cloned from his site
+    '''
+    (nsample, nd) = np.shape(Input);
+
+    # convert the input samples into cdf domains
+    U = np.linspace(0.0, 1.0, num=ndomain + 1)
+    cdf_input = np.zeros((nsample, nd))
+    cdf_values = np.linspace(1.0 / nsample, 1.0, nsample)
+
+    j = 1
+    for i in range(nd):
+        IX = np.argsort(Input[:, i])
+        IX2 = np.argsort(IX)
+        cdf_input[:, i] = cdf_values[IX2]
+
+    # compute the first-order indices
+    VY = np.var(Output, ddof=1)
+    VarY_local = np.zeros((ndomain, nd))
+    for i in range(nd):
+        cdf_input_i = cdf_input[:, i]
+        output_i = Output
+        U_i = U
+        for j in range(ndomain):
+            sub = cdf_input_i < U_i[j + 1]
+            VarY_local[j, i] = np.var(output_i[sub], ddof=1)
+            inverse_sub = ~sub
+            cdf_input_i = cdf_input_i[inverse_sub]
+            output_i = output_i[inverse_sub]
+
+    index = 1.0 - np.mean(VarY_local, axis=0) / VY
+
+    return index
+
+
+def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, net):
+    # Internal Varrs
+    operational_dict = {0: {'Operational Scenario': 'Normal loading with traditional OPF (BAU policy)',
+                            'Withdrawal Weight ($/Gallon)': 0.0,
+                            'Consumption Weight ($/Gallon)': 0.0,
+                            'Uniform Loading Factor': 1.0},
+                        1: {'Operational Scenario': 'Heatwave with traditional OPF (BAU policy)',
+                            'Withdrawal Weight ($/Gallon)': 0.0,
+                            'Consumption Weight ($/Gallon)': 0.0,
+                            'Uniform Loading Factor': 1.5},
+                        2: {'Operational Scenario': 'Heatwave with aggressive withdrawal policy',
+                            'Withdrawal Weight ($/Gallon)': 0.1,
+                            'Consumption Weight ($/Gallon)': 0.0,
+                            'Uniform Loading Factor': 1.5},
+                        3: {'Operational Scenario': 'Heatwave with aggressive consumption policy',
+                            'Withdrawal Weight ($/Gallon)': 0.0,
+                            'Consumption Weight ($/Gallon)': 1.0,
+                            'Uniform Loading Factor': 1.5}}  # Manual specifications
+    df_operation = pd.DataFrame(operational_dict).T
+    exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)'] + \
+                     ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(str) + ' Withdrawal Rate (Gallon/kWh)').tolist() + \
+                     ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(str) + ' Consumption Rate (Gallon/kWh)').tolist() + \
+                     ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
+    results_labs = obj_labs + ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(str) + ' Ratio of Capacity').to_list()
+    t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
+    n_sample = 1024 * (2*5+2)  # for saltelli sampling 1024
+    print('Success: Initialized')
+    # Generate Samples
+    df_sample = generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc)
+    factor_labs = df_sample.columns.to_list()
+    print('Number of Samples: ', len(df_sample))
+    # Loop over operational scenarios
+    for index, row in df_operation.iterrows():
+        # Define Outputs Paths
+        pathto_sample_output = os.path.join(pathto_data, 'nonuniform_sa_samples', row['Operational Scenario'] + ' samples.csv')
+        pathto_sobil_output = os.path.join(pathto_data, 'nonuniform_sa_sobol', row['Operational Scenario']+' sobol.csv')
+        # Apply Coefficients to Exogenous Parameters
+        df_exogenous = getExogenous(df_sample.copy(), df_hnwc, row['Withdrawal Weight ($/Gallon)'], row['Consumption Weight ($/Gallon)'], row['Uniform Loading Factor'], df_geninfo, net, exogenous_labs)
+        # Evaluate Model
+        ddf_exogenous = dd.from_pandas(df_exogenous, npartitions=n_tasks)
+        df_results = ddf_exogenous.apply(lambda row: waterOPF(row[exogenous_labs], t, results_labs, net, df_geninfo), axis=1, meta={key: 'float64' for key in results_labs}).compute(scheduler='processes')
+        #df_results = df_exogenous.apply(lambda row: waterOPF(row[exogenous_labs], t, results_labs, net, df_geninfo), axis=1)
+        df_sample_master = pd.concat([df_results, df_exogenous], axis=1)
+        df_sample_master.to_csv(pathto_sample_output, index=False)
+        print('Success: Model Run Complete')
+
+        df_sobol_results = pd.DataFrame()
+        for i in results_labs[0:4]:
+            ndomain = int(np.sqrt(df_sample_master.__len__()))
+            si_vals = MGSA_FirstOrder(Input=df_sample_master[factor_labs].values, Output=df_sample_master[i].values,
+                                      ndomain=ndomain)
+            df_sobol_results = df_sobol_results.append(pd.Series(si_vals, index=factor_labs).rename(i))
+        df_sobol_results.to_csv(pathto_sobil_output)
+        print('Success: Sobil Analysis')
+    df_nonuniform, df_nonuniform_sobol = 0
+    return df_nonuniform, df_nonuniform_sobol
