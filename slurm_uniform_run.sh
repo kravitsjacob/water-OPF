@@ -8,7 +8,7 @@
 #SBATCH --partition=shas
 #SBATCH --qos=condo
 #SBATCH --account=ucb-summit-jrk
-#SBATCH --time=0-00:15:00
+#SBATCH --time=0-00:10:00
 #SBATCH --mail-user=kravitsjacob@gmail.com
 #SBATCH --mail-type=END
 
