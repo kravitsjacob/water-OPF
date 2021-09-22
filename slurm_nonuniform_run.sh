@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --nodes=4
+#SBATCH --nodes=10
 #SBATCH --ntasks-per-node=24
 #SBATCH --cpus-per-task=1
 #SBATCH --output=run.out
@@ -8,7 +8,7 @@
 #SBATCH --partition=shas
 #SBATCH --qos=condo
 #SBATCH --account=ucb-summit-jrk
-#SBATCH --time=0-00:60:00
+#SBATCH --time=0-00:120:00
 #SBATCH --mail-user=kravitsjacob@gmail.com
 #SBATCH --mail-type=END
 
