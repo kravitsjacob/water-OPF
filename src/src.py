@@ -667,25 +667,31 @@ def viz_effect_of_withdrawal_weight_plant_output(df, df_gen_info):
     case_c = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[2]) & (df['Uniform Water Coefficient'] == uniform_water_criteria[2])
     df = df[case_a | case_b | case_c]
 
+
     # Making labels
     df['Withdrawal Weight ($/Gallon)'] = df['Withdrawal Weight ($/Gallon)'].astype('category')
     df['Fuel/Cooling Type'] = df['MATPOWER Fuel'] + '/' + df['923 Cooling Type']
+    df = df.sort_values('Fuel/Cooling Type')
     df['ID'] = '$w_{with}=$' + df['Withdrawal Weight ($/Gallon)'].astype(str) + ', $c_{water}=$' + df['Uniform Water Coefficient'].astype(str)
 
     # Creating plot
-    g = sns.FacetGrid(df, row='ID', col='Fuel/Cooling Type', aspect=1, sharex='col')
+    g = sns.FacetGrid(df, row='ID', col='Fuel/Cooling Type', sharex='col', aspect=0.8, margin_titles=True)
     g.map_dataframe(sns.lineplot, y='Output', x='Uniform Loading Coefficient', hue='Plant Name', style='Plant Name',
                     markers=True)
-    g.add_legend()
     for row in range(g.axes.shape[0]):
         for col in range(g.axes.shape[1]):
             if row == 0:
                 g.axes[row, col].set_title(df['Fuel/Cooling Type'].unique()[col])
             else:
                 g.axes[row, col].set_title('')
-
-            if col == 0:
-                g.axes[row, col].set_ylabel('Uniform Water Coefficient = '+str(uniform_water_criteria[row]) + '\nWithdrawal Weight ($/Gallon) = '+str(withdrawal_criteria[row]))
+            if col == g.axes.shape[1] - 1:
+                txt = 'Uniform Water Coefficient = ' + str(uniform_water_criteria[row]) + \
+                      '\nWithdrawal Weight ($/Gallon) = ' + str(withdrawal_criteria[row])
+                g.axes[row, col].texts[0].set_text(txt)
+                g.axes[row, col].texts[0].set_fontsize(10)
+            if row == 2:
+                g.axes[row, col].legend(loc='center', bbox_to_anchor=(0.5, -0.6))
+    g.set_axis_labels(x_var='Uniform Loading Coefficient', y_var='Capacity Ratio')
     plt.tight_layout()
     plt.show()
 
@@ -693,7 +699,7 @@ def viz_effect_of_withdrawal_weight_plant_output(df, df_gen_info):
 
 
 def uniform_sa_dataviz(df, uniform_factor_labs, obj_labs, df_gen_info_match_water):
-    #fig_a = viz_effect_of_withdrawal_weight(df, uniform_factor_labs, obj_labs)
+    fig_a = viz_effect_of_withdrawal_weight(df, uniform_factor_labs, obj_labs)
     df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info_match_water, uniform_factor_labs, obj_labs)
     fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio, df_gen_info_match_water)
     return fig_a, fig_b
