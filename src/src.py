@@ -608,12 +608,15 @@ def uniform_sa(df_gen_info_match_water, net, n_tasks, n_steps, uniform_factor_la
 
 
 def viz_effect_of_withdrawal_weight(df, uniform_factor_labs, obj_labs):
-    # Prepare Data
+
+    # Subsetting data
     plot_df = df[uniform_factor_labs + obj_labs]
     plot_df = plot_df[plot_df['Consumption Weight ($/Gallon)'] == 0.0]
+    plot_df = plot_df[plot_df['Withdrawal Weight ($/Gallon)'].isin([0.0, 0.1])]
     plot_df = plot_df.round({'Uniform Water Coefficient': 2})
-    plot_df = plot_df[plot_df['Uniform Water Coefficient'].isin(plot_df['Uniform Water Coefficient'].unique()[1::2])]  # Select every other loading factor value
-    plot_df['Withdrawal Weight ($/Gallon)'] = pd.cut(plot_df['Withdrawal Weight ($/Gallon)'], [0.0, 0.01, 0.1], labels=['0.0', '[0.01, 0.1]'], right=False)
+    plot_df = plot_df[plot_df['Uniform Water Coefficient'].isin(
+        plot_df['Uniform Water Coefficient'].unique()[1::2])]  # Select every other uniform water coefficient
+
     # Plot
     fig, ax = plt.subplots(figsize=(8, 5))
     g = sns.lineplot(data=plot_df, x='Uniform Loading Coefficient', y='Water Withdrawal (Gallon)',
