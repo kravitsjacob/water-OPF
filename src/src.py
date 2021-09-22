@@ -751,7 +751,10 @@ def uniform_sa_tree(df, obj_labs, uniform_factor_labs):
 
 def generate_nonuniform_samples(n_sample, df_gen_info_match_water, df_hnwc):
 
-    a = df_gen_info_match_water[['Plant Name', '923 Cooling Type', 'MATPOWER Fuel']].merge(df_hnwc)
+    # Add plant information
+    df_hnwc = df_gen_info_match_water[['Plant Name', '923 Cooling Type', 'MATPOWER Fuel']].merge(df_hnwc)
+    df_hnwc['Input Factor'] = df_hnwc['Plant Name'] + ' Non-Uniform Water Coefficient'
+
     # Sampling
     replace = True  # with replacement
     n_inputs_factors = len(df_hnwc['Input Factor'].unique())
@@ -759,12 +762,16 @@ def generate_nonuniform_samples(n_sample, df_gen_info_match_water, df_hnwc):
     df_sample = df_hnwc.groupby('Input Factor', as_index=False).apply(fn)
     df_sample['Sample Index'] = np.tile(np.arange(0, n_sample), n_inputs_factors)
     df_sample = df_sample.reset_index().pivot(columns='Input Factor', values='value', index='Sample Index')
-    return df_sample
+    return df_sample, df_hnwc
 
 
 def nonuniform_factor_multiply(ser_c_water, c_load, exogenous_labs, net, df_geninfo):
-    df_geninfo = df_geninfo.merge(ser_c_water, left_on=['MATPOWER Fuel', '923 Cooling Type'], right_index=True, how='left')
+
+    # Nonuniform coefficients
+    df_geninfo = df_geninfo.merge(ser_c_water, left_on=['Plant Name'], right_index=True, how='left')
     df_geninfo.iloc[:, -1].fillna(0, inplace=True)  # Joined column will always be last
+
+    # Uniform coefficients
     beta_load = net.load['p_mw'].values * c_load
     beta_with = (df_geninfo['Median Withdrawal Rate (Gallon/kWh)'] * df_geninfo.iloc[:,-1]).values
     beta_con = (df_geninfo['Median Consumption Rate (Gallon/kWh)'] * df_geninfo.iloc[:,-1]).values
@@ -775,14 +782,14 @@ def nonuniform_factor_multiply(ser_c_water, c_load, exogenous_labs, net, df_geni
 
 def get_nonuniform_exogenous(df_sample, df_hnwc, w_with, w_con, c_load, df_geninfo, net, exogenous_labs):
     # Formatting
-    df_unique = df_hnwc.groupby(['Fuel Type', '923 Cooling Type']).size().reset_index()[['Fuel Type', '923 Cooling Type']]
-    multiindex_columns = pd.MultiIndex.from_frame(df_unique)
-    df_sample_multi = pd.DataFrame(df_sample.values, columns=multiindex_columns)
+    original_columns = df_sample.columns
+    df_sample.columns = [i.split(' Non-Uniform Water Coefficient')[:][0] for i in df_sample.columns]
 
     # Multiply exogenous parameters
-    df_exogenous = df_sample_multi.apply(lambda row: nonuniform_factor_multiply(row, c_load, exogenous_labs, net, df_geninfo), axis=1)
+    df_exogenous = df_sample.apply(lambda row: nonuniform_factor_multiply(row, c_load, exogenous_labs, net, df_geninfo), axis=1)
 
-    # Combine
+    # Storing
+    df_sample.columns = original_columns
     df_sample['Withdrawal Weight ($/Gallon)'] = w_with
     df_sample['Consumption Weight ($/Gallon)'] = w_con
     df_exogenous = pd.concat([df_sample, df_exogenous], axis=1)
@@ -832,7 +839,7 @@ def MGSA_FirstOrder(Input, Output, ndomain):
     return index
 
 
-def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, net):
+def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
     # Internal Varrs
     operational_dict = {0: {'Operational Scenario': 'Normal loading with traditional OPF (BAU policy)',
                             'Withdrawal Weight ($/Gallon)': 0.0,
@@ -857,34 +864,56 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, net):
                      ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
     results_labs = obj_labs + ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(str) + ' Ratio of Capacity').to_list()
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
-    n_sample = 1024 * (2*5+2)  # for saltelli sampling 1024
-    print('Success: Initialized')
+    n_sample = 1024 * (2*10+2)  # for saltelli sampling 1024
+    n_sample = 4
+    print('Success: Initialized Non-Uniform')
+    results_ls = []
+    sobol_ls = []
+
+    # Adding Pandapower information
+    df_gen_info = matchIndex(df_gen_info, net)
+
     # Generate Samples
-    df_sample = generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc)
+    df_sample, df_hnwc = generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc)
     factor_labs = df_sample.columns.to_list()
     print('Number of Samples: ', len(df_sample))
-    # Loop over operational scenarios
-    for index, row in df_operation.iterrows():
-        # Define Outputs Paths
-        pathto_sample_output = os.path.join(pathto_data, 'nonuniform_sa_samples', row['Operational Scenario'] + ' samples.csv')
-        pathto_sobil_output = os.path.join(pathto_data, 'nonuniform_sa_sobol', row['Operational Scenario']+' sobol.csv')
-        # Apply Coefficients to Exogenous Parameters
-        df_exogenous = getExogenous(df_sample.copy(), df_hnwc, row['Withdrawal Weight ($/Gallon)'], row['Consumption Weight ($/Gallon)'], row['Uniform Loading Factor'], df_geninfo, net, exogenous_labs)
-        # Evaluate Model
-        ddf_exogenous = dd.from_pandas(df_exogenous, npartitions=n_tasks)
-        df_results = ddf_exogenous.apply(lambda row: waterOPF(row[exogenous_labs], t, results_labs, net, df_geninfo), axis=1, meta={key: 'float64' for key in results_labs}).compute(scheduler='processes')
-        #df_results = df_exogenous.apply(lambda row: waterOPF(row[exogenous_labs], t, results_labs, net, df_geninfo), axis=1)
-        df_sample_master = pd.concat([df_results, df_exogenous], axis=1)
-        df_sample_master.to_csv(pathto_sample_output, index=False)
-        print('Success: Model Run Complete')
 
+    for index, row in df_operation.iterrows():
+        # Apply Coefficients to Exogenous Parameters
+        df_exogenous = get_nonuniform_exogenous(
+            df_sample.copy(),
+            df_hnwc,
+            row['Withdrawal Weight ($/Gallon)'],
+            row['Consumption Weight ($/Gallon)'],
+            row['Uniform Loading Factor'],
+            df_gen_info,
+            net,
+            exogenous_labs
+        )
+
+        # Evaluate model
+        ddf_exogenous = dd.from_pandas(df_exogenous, npartitions=n_tasks)
+        df_results = ddf_exogenous.apply(lambda row: waterOPF(row[exogenous_labs], t, results_labs, net, df_gen_info), axis=1, meta={key: 'float64' for key in results_labs}).compute(scheduler='processes')
+        df_sample = pd.concat([df_results, df_exogenous], axis=1)
+        print('Success: ' + row['Operational Scenario'] + ' Model Run Complete')
+
+        # Calculate sobol
         df_sobol_results = pd.DataFrame()
         for i in results_labs[0:4]:
-            ndomain = int(np.sqrt(df_sample_master.__len__()))
-            si_vals = MGSA_FirstOrder(Input=df_sample_master[factor_labs].values, Output=df_sample_master[i].values,
+            ndomain = int(np.sqrt(df_sample.__len__()))
+            si_vals = MGSA_FirstOrder(Input=df_sample[factor_labs].values, Output=df_sample[i].values,
                                       ndomain=ndomain)
             df_sobol_results = df_sobol_results.append(pd.Series(si_vals, index=factor_labs).rename(i))
-        df_sobol_results.to_csv(pathto_sobil_output)
-        print('Success: Sobil Analysis')
-    df_nonuniform, df_nonuniform_sobol = 0
+        print('Success: ' + row['Operational Scenario'] + ' Sobol Analysis')
+
+        # Storage
+        df_results['Operational Scenario'] = row['Operational Scenario']
+        df_sobol_results['Operational Scenario'] = row['Operational Scenario']
+        sobol_ls.append(df_sobol_results.rename_axis('Objective').reset_index())
+        results_ls.append(df_results)
+
+    # Creating main dataframes
+    df_nonuniform = pd.concat(results_ls, ignore_index=True)
+    df_nonuniform_sobol = pd.concat(sobol_ls, ignore_index=True)
+
     return df_nonuniform, df_nonuniform_sobol

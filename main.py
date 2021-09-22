@@ -104,11 +104,12 @@ def main():
 
     # Nonuniform SA
     if os.path.exists(pathto_nonuniform_sa_sobol):
-        a = 1
+        df_nonuniform = pd.read_csv(pathto_nonuniform_sa)
+        df_nonuniform_sobol = pd.read_csv(pathto_nonuniform_sa)
     else:
-        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_gen_info_match_water, df_hnwc, obj_labs, net)
+        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_gen_info_match_water, df_hnwc, obj_labs, n_tasks, net)
         df_nonuniform.to_csv(pathto_nonuniform_sa, index=False)
-        df_nonuniform_sobol.to_csv(pathto_nonuniform_sa, index=False)
+        df_nonuniform_sobol.to_csv(pathto_nonuniform_sa_sobol, index=False)
     return 0
 
 
