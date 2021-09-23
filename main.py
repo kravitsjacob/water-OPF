@@ -36,6 +36,7 @@ pathto_load = os.path.join('G:\My Drive\Documents (Stored)\data_sets\load exogen
 
 # Paths for figures
 pathto_figures = os.path.join(pathto_data, 'figures')
+pathto_tables = os.path.join(pathto_data, 'tables')
 
 def main():
     # Initialize vars
@@ -122,6 +123,11 @@ def main():
     if not os.path.exists(os.path.join(pathto_figures, 'Load Distribution.pdf')):
         df_historic_loads = pd.read_csv(pathto_load)
         src.historic_load_viz(df_historic_loads).savefig(os.path.join(pathto_figures, 'Load Distribution.pdf'))
+
+    # System Information Table
+    if not os.path.exists(os.path.join(pathto_tables, 'system_information')):
+        df_system = src.get_system_information(df_gen_info_match_water)
+        df_system.to_csv(os.path.join(pathto_tables, 'system_information'), index=False)
 
     return 0
 
