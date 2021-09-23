@@ -919,7 +919,7 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
         df_results['Operational Scenario'] = row['Operational Scenario']
         df_sobol_results['Operational Scenario'] = row['Operational Scenario']
         sobol_ls.append(df_sobol_results.rename_axis('Objective').reset_index())
-        results_ls.append(df_results)
+        results_ls.append(df_sample)
 
     # Creating main dataframes
     df_nonuniform = pd.concat(results_ls, ignore_index=True)
