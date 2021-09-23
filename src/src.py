@@ -899,7 +899,7 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
         # Calculate sobol
         df_sobol_results = pd.DataFrame()
         for i in results_labs[0:4]:
-            ndomain = int(np.sqrt(df_sample.__len__()))
+            ndomain = int(np.sqrt(n_sample))
             si_vals = MGSA_FirstOrder(Input=df_sample[factor_labs].values, Output=df_sample[i].values,
                                       ndomain=ndomain)
             df_sobol_results = df_sobol_results.append(pd.Series(si_vals, index=factor_labs).rename(i))
