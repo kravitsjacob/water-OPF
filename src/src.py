@@ -892,7 +892,17 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
 
         # Evaluate model
         ddf_exogenous = dd.from_pandas(df_exogenous, npartitions=n_tasks)
-        df_results = ddf_exogenous.apply(lambda row: waterOPF(row[exogenous_labs], t, results_labs, net, df_gen_info), axis=1, meta={key: 'float64' for key in results_labs}).compute(scheduler='processes')
+        df_results = ddf_exogenous.apply(
+            lambda row: waterOPF(
+                row[exogenous_labs],
+                t,
+                results_labs,
+                net,
+                df_gen_info
+            ),
+            axis=1,
+            meta={key: 'float64' for key in results_labs}
+        ).compute(scheduler='processes')
         df_sample = pd.concat([df_results, df_exogenous], axis=1)
         print('Success: ' + row['Operational Scenario'] + ' Model Run Complete')
 
