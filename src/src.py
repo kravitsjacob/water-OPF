@@ -1003,3 +1003,20 @@ def get_system_information(df_gen_info_match_water):
     df = df_info.merge(df_gens, left_index=True, right_on='Plant Name')
 
     return df
+
+
+def get_sobol_locations(operational_scenario, obj_name, df):
+
+    # Local variables
+    input_factor_labs = df.filter(like='Non-Uniform Water Coefficient').columns
+
+    # Filtering
+    df = df[(df['Operational Scenario'] == operational_scenario) & (df['Objective'] == obj_name)][input_factor_labs]
+
+    # Formatting
+    df = df.T
+    df = df.rename({10: 'First Order Index for ' + obj_name}, axis=1)
+    df = df.reset_index().rename({'index': 'Input Factor'}, axis=1)
+    df['Plant Name'] = df['Input Factor'].str.split(' Non-Uniform Water Coefficient').str[0]
+
+    return None
