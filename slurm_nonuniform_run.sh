@@ -1,6 +1,6 @@
 #!/bin/bash
 
-#SBATCH --nodes=2
+#SBATCH --nodes=10
 #SBATCH --ntasks-per-node=24
 #SBATCH --cpus-per-task=1
 #SBATCH --output=run.out
@@ -8,11 +8,11 @@
 #SBATCH --partition=shas
 #SBATCH --qos=condo
 #SBATCH --account=ucb-summit-jrk
-#SBATCH --time=0-00:100:00
+#SBATCH --time=0-00:40:00
 #SBATCH --mail-user=kravitsjacob@gmail.com
 #SBATCH --mail-type=END
 
 module purge
 source /curc/sw/anaconda3/2019.07/bin/activate
-conda activate grid_optimization
-python -u main.py '/scratch/summit/jakr3868/water-OPF-v0.2/' 48
+conda activate water-OPF
+python -u main.py '/scratch/summit/jakr3868/water-OPF-v1.0/' 240
