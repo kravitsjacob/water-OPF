@@ -865,6 +865,7 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
     results_labs = obj_labs + ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(str) + ' Ratio of Capacity').to_list()
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
     n_sample = 1024 * (2*10+2)  # for saltelli sampling 1024
+    n_sample = 500
     print('Success: Initialized Non-Uniform')
     results_ls = []
     sobol_ls = []
@@ -878,6 +879,8 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
     print('Number of Samples: ', len(df_sample))
 
     for index, row in df_operation.iterrows():
+
+
         # Apply Coefficients to Exogenous Parameters
         df_exogenous = get_nonuniform_exogenous(
             df_sample.copy(),
@@ -903,14 +906,16 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
             axis=1,
             meta={key: 'float64' for key in results_labs}
         ).compute(scheduler='processes')
-        df_sample = pd.concat([df_results, df_exogenous], axis=1)
+        df_results_exogenous = pd.concat([df_results, df_exogenous], axis=1)
+        df_results_exogenous.drop_duplicates()
         print('Success: ' + row['Operational Scenario'] + ' Model Run Complete')
 
         # Calculate sobol
         df_sobol_results = pd.DataFrame()
         for i in results_labs[0:4]:
             ndomain = int(np.sqrt(n_sample))
-            si_vals = MGSA_FirstOrder(Input=df_sample[factor_labs].values, Output=df_sample[i].values,
+            si_vals = MGSA_FirstOrder(Input=df_results_exogenous[factor_labs].values,
+                                      Output=df_results_exogenous[i].values,
                                       ndomain=ndomain)
             df_sobol_results = df_sobol_results.append(pd.Series(si_vals, index=factor_labs).rename(i))
         print('Success: ' + row['Operational Scenario'] + ' Sobol Analysis')
@@ -919,7 +924,7 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
         df_results['Operational Scenario'] = row['Operational Scenario']
         df_sobol_results['Operational Scenario'] = row['Operational Scenario']
         sobol_ls.append(df_sobol_results.rename_axis('Objective').reset_index())
-        results_ls.append(df_sample)
+        results_ls.append(df_results_exogenous)
 
     # Creating main dataframes
     df_nonuniform = pd.concat(results_ls, ignore_index=True)
