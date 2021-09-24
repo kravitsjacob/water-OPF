@@ -912,7 +912,7 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
 
         # Calculate sobol
         df_sobol_results = pd.DataFrame()
-        for i in results_labs[0:4]:
+        for i in obj_labs:
             ndomain = int(np.sqrt(n_sample))
             si_vals = MGSA_FirstOrder(Input=df_results_exogenous[factor_labs].values,
                                       Output=df_results_exogenous[i].values,
@@ -974,3 +974,23 @@ def historic_load_viz(df):
     plt.tight_layout()
     plt.show()
     return fig
+
+
+def get_system_information(df_gen_info_match_water):
+
+    df_gens = df_gen_info_match_water.groupby('Plant Name')['MATPOWER Index'].apply(set).reset_index(name='Generators')
+    df_gens['Generators'] = df_gens.apply(
+        lambda row: ', '.join([str(element) for element in row['Generators']]),
+        axis=1
+    )
+
+    df_info = df_gen_info_match_water.groupby('Plant Name').first()
+
+
+
+
+    cols = ['Plant Name', 'MATPOWER Index', 'MATPOWER Capacity (MW)', 'MATPOWER Fuel', '923 Cooling Type',
+            'Median Withdrawal Rate (Gallon/kWh)', 'Median Consumption Rate (Gallon/kWh)']
+    df = df_gen_info_match_water[cols]
+
+    return df
