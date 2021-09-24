@@ -866,7 +866,6 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
     results_labs = obj_labs + ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(str) + ' Ratio of Capacity').to_list()
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
     n_sample = 1024 * (2*10+2)  # for saltelli sampling 1024
-    n_sample = 500
     print('Success: Initialized Non-Uniform')
     results_ls = []
     sobol_ls = []
