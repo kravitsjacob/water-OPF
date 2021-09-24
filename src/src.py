@@ -987,19 +987,20 @@ def historic_load_viz(df):
 
 def get_system_information(df_gen_info_match_water):
 
+    # Generator aggregation
     df_gens = df_gen_info_match_water.groupby('Plant Name')['MATPOWER Index'].apply(set).reset_index(name='Generators')
     df_gens['Generators'] = df_gens.apply(
         lambda row: ', '.join([str(element) for element in row['Generators']]),
         axis=1
     )
 
-    df_info = df_gen_info_match_water.groupby('Plant Name').first()
+    df_capacity = df_gen_info_match_water.groupby('Plant Name').sum()
 
+    # Remaining information
+    df_info = df_gen_info_match_water.groupby('Plant Name').first().drop('MATPOWER Capacity (MW)', axis='columns')
 
-
-
-    cols = ['Plant Name', 'MATPOWER Index', 'MATPOWER Capacity (MW)', 'MATPOWER Fuel', '923 Cooling Type',
-            'Median Withdrawal Rate (Gallon/kWh)', 'Median Consumption Rate (Gallon/kWh)']
-    df = df_gen_info_match_water[cols]
+    # Merging
+    df_info = df_info.join(df_capacity['MATPOWER Capacity (MW)'])
+    df = df_info.merge(df_gens, left_index=True, right_on='Plant Name')
 
     return df
