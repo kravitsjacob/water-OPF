@@ -792,6 +792,7 @@ def get_nonuniform_exogenous(df_sample, df_hnwc, w_with, w_con, c_load, df_genin
     df_sample.columns = original_columns
     df_sample['Withdrawal Weight ($/Gallon)'] = w_with
     df_sample['Consumption Weight ($/Gallon)'] = w_con
+    df_sample['Uniform Loading Coefficient'] = c_load
     df_exogenous = pd.concat([df_sample, df_exogenous], axis=1)
     return df_exogenous
 
@@ -907,7 +908,8 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
             meta={key: 'float64' for key in results_labs}
         ).compute(scheduler='processes')
         df_results_exogenous = pd.concat([df_results, df_exogenous], axis=1)
-        df_results_exogenous.drop_duplicates()
+        df_results_exogenous = df_results_exogenous.dropna()
+        df_results_exogenous = df_results_exogenous.drop_duplicates()  # Sometimes dask duplicates rows
         print('Success: ' + row['Operational Scenario'] + ' Model Run Complete')
 
         # Calculate sobol
@@ -921,7 +923,7 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
         print('Success: ' + row['Operational Scenario'] + ' Sobol Analysis')
 
         # Storage
-        df_results['Operational Scenario'] = row['Operational Scenario']
+        df_results_exogenous['Operational Scenario'] = row['Operational Scenario']
         df_sobol_results['Operational Scenario'] = row['Operational Scenario']
         sobol_ls.append(df_sobol_results.rename_axis('Objective').reset_index())
         results_ls.append(df_results_exogenous)
@@ -941,8 +943,15 @@ def draw_heatmap(*args, **kwargs):
 
 
 def nonuniform_sobol_viz(df_sobol):
+
+    # Local variables
+    input_factor_labs = df_sobol.filter(like='Non-Uniform Water Coefficient').columns
+
     # Filter
-    df_sobol[df_sobol._get_numeric_data() < -0.1] = np.nan  # Invalid Index
+    invalid_index = (df_sobol['Operational Scenario'].str.contains('BAU')) & \
+                    (df_sobol['Objective'].str.contains('Cost'))  # Objectives that have no impact
+    df_sobol.loc[invalid_index, input_factor_labs] = np.nan
+    df_sobol._get_numeric_data()[df_sobol._get_numeric_data() < 0] = 0  # Due to numeric estimation
 
     # Plot
     g = sns.FacetGrid(df_sobol, col='Operational Scenario', height=5.5, aspect=0.6, sharey=True)

@@ -125,9 +125,9 @@ def main():
         src.historic_load_viz(df_historic_loads).savefig(os.path.join(pathto_figures, 'Load Distribution.pdf'))
 
     # System Information Table
-    if not os.path.exists(os.path.join(pathto_tables, 'system_information')):
+    if not os.path.exists(os.path.join(pathto_tables, 'system_information.csv')):
         df_system = src.get_system_information(df_gen_info_match_water)
-        df_system.to_csv(os.path.join(pathto_tables, 'system_information'), index=False)
+        df_system.to_csv(os.path.join(pathto_tables, 'system_information.csv'), index=False)
 
     return 0
 
