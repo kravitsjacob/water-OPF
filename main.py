@@ -6,6 +6,7 @@ import multiprocessing
 
 import pandapower.converter
 import pandas as pd
+import geopandas as gpd
 from reportlab.graphics import renderPDF
 
 
@@ -26,6 +27,7 @@ pathto_hnwc = os.path.join(pathto_data, 'temp', 'hnwc.csv')
 pathto_uniform_sa = os.path.join(pathto_data, 'temp', 'uniform_sa_results.csv')
 pathto_nonuniform_sa = os.path.join(pathto_data, 'temp', 'nonuniform_sa_results.csv')
 pathto_nonuniform_sa_sobol = os.path.join(pathto_data, 'temp', 'nonuniform_sa_sobol.csv')
+pathto_nonuniform_sa_sobol_spatial = os.path.join(pathto_data, 'temp', 'nonuniform_sa_sobol_spatial', 'plants.shp')
 
 # Paths for external Inputs
 pathto_EIA_raw = 'G:\My Drive\Documents (Stored)\data_sets\EIA_theremoelectric_water_use'
@@ -33,6 +35,7 @@ pathto_matpowercase = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.
 pathto_geninfo = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'gen_info.csv')
 pathto_load = os.path.join('G:\My Drive\Documents (Stored)\data_sets\load exogenous parameter testing V1 io',
                            '20180101-20200101 MISO Forecasted Cleared & Actual Load.csv')
+pathto_gen_locations = 'G:\My Drive\Documents (Stored)\data_sets\Illinois Synthetic Grid Gens\gens.shp'
 
 # Paths for figures
 pathto_figures = os.path.join(pathto_data, 'figures')
@@ -128,6 +131,18 @@ def main():
     if not os.path.exists(os.path.join(pathto_tables, 'system_information.csv')):
         df_system = src.get_system_information(df_gen_info_match_water)
         df_system.to_csv(os.path.join(pathto_tables, 'system_information.csv'), index=False)
+
+    # Sobol Spatial
+    if not os.path.exists(pathto_nonuniform_sa_sobol_spatial):
+        gdf_gens = gpd.read_file(pathto_gen_locations)
+        gfd_sobol = src.get_sobol_locations(
+            operational_scenario='Heatwave with aggressive withdrawal policy',
+            obj_name='Water Withdrawal (Gallon)',
+            df=df_nonuniform_sobol,
+            df_gen_info=df_gen_info_match_water,
+            gdf=gdf_gens
+        )
+        gfd_sobol.to_file(pathto_nonuniform_sa_sobol_spatial)
 
     return 0
 
