@@ -14,7 +14,7 @@ if len(sys.argv) > 1:
     pathto_data = sys.argv[1]
     n_tasks = int(sys.argv[2])
 else:
-    pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v1.0'
+    pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v1.1'
     n_tasks = os.cpu_count()
 
 
