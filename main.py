@@ -19,6 +19,8 @@ else:
 
 
 # Paths for checkpoints
+pathto_matpowercase = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.mat')
+pathto_geninfo = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'gen_info.csv')
 pathto_case = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.p')
 pathto_gen_info_match = os.path.join(pathto_data, 'temp', 'gen_info_match.csv')
 pathto_gen_info_match_water = os.path.join(pathto_data, 'temp', 'gen_info_match_water.csv')
@@ -29,10 +31,11 @@ pathto_nonuniform_sa = os.path.join(pathto_data, 'temp', 'nonuniform_sa_results.
 pathto_nonuniform_sa_sobol = os.path.join(pathto_data, 'temp', 'nonuniform_sa_sobol.csv')
 pathto_nonuniform_sa_sobol_spatial = os.path.join(pathto_data, 'temp', 'nonuniform_sa_sobol_spatial', 'plants.shp')
 
+# Paths for manual_files
+pathto_gen_matches = os.path.join(pathto_data, 'manual_files', 'gen_matches.csv')
+
 # Paths for external Inputs
 pathto_EIA_raw = 'G:\My Drive\Documents (Stored)\data_sets\EIA_theremoelectric_water_use'
-pathto_matpowercase = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.mat')
-pathto_geninfo = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'gen_info.csv')
 pathto_load = os.path.join('G:\My Drive\Documents (Stored)\data_sets\load exogenous parameter testing V1 io',
                            '20180101-20200101 MISO Forecasted Cleared & Actual Load.csv')
 pathto_gen_locations = 'G:\My Drive\Documents (Stored)\data_sets\Illinois Synthetic Grid Gens\gens.shp'
@@ -40,6 +43,7 @@ pathto_gen_locations = 'G:\My Drive\Documents (Stored)\data_sets\Illinois Synthe
 # Paths for figures
 pathto_figures = os.path.join(pathto_data, 'figures')
 pathto_tables = os.path.join(pathto_data, 'tables')
+
 
 def main():
     # Initialize vars
@@ -60,8 +64,9 @@ def main():
     if os.path.exists(pathto_gen_info_match):
         df_gen_info_match = pd.read_csv(pathto_gen_info_match)  # Load checkpoint
     else:
+        df_gen_matches = pd.read_csv(pathto_gen_matches)
         df_gen_info = pd.read_csv(pathto_geninfo)
-        df_gen_info_match = src.generator_match(df_gen_info)
+        df_gen_info_match = src.generator_match(df_gen_info, df_gen_matches)
         print('Success: generator_match')
         df_gen_info_match.to_csv(pathto_gen_info_match, index=False)  # Save checkpoint
 
