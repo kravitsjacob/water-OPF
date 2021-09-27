@@ -786,29 +786,3 @@ def get_system_information(df_gen_info_match_water):
     df = df_info.merge(df_gens, left_index=True, right_on='Plant Name')
 
     return df
-
-
-def get_sobol_locations(operational_scenario, obj_name, df, df_gen_info, gdf):
-
-    # Local variables
-    input_factor_labs = df.filter(like='Non-Uniform Water Coefficient').columns
-
-    # Filtering
-    df._get_numeric_data()[df._get_numeric_data() < 0] = 0  # Due to numeric estimation
-    df = df[(df['Operational Scenario'] == operational_scenario) & (df['Objective'] == obj_name)][input_factor_labs]
-
-    # Formatting
-    df = df.T
-    df = df.rename({10: 'First Ord'}, axis=1)
-    df = df.reset_index().rename({'index': 'Input Factor'}, axis=1)
-    df['Plant Name'] = df['Input Factor'].str.split(' Non-Uniform Water Coefficient').str[0]
-
-    # Get POWERWORLD plant names
-    df_gen_info = df_gen_info.groupby('Plant Name').first()
-    df = df.merge(df_gen_info, left_on='Plant Name', right_index=True)
-
-    # Get plant locations
-    gdf = gdf.groupby('Sub Name of').first()['geometry'].to_frame()
-    gdf = gdf.merge(df, left_index=True, right_on='POWERWORLD Plant Name')
-
-    return gdf
