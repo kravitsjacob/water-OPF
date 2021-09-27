@@ -719,34 +719,43 @@ def nonuniform_sa(df_gen_info, df_hnwc, df_operation, obj_labs, n_tasks, net):
 
 def draw_heatmap(*args, **kwargs):
     data = kwargs.pop('data')
-    data = data.set_index('Objective')
-    data.columns = [i.split(' Non-Uniform Water Coefficient')[:][0] for i in data.columns]
-    return sns.heatmap(data.iloc[:, :-1], **kwargs)
+    data = data.pivot(columns='Plant Name', index='Objective', values='Sobol Index')
+    return sns.heatmap(data, **kwargs)
 
 
-def nonuniform_sobol_viz(df_sobol):
+def nonuniform_sobol_viz(df_sobol, df_gen_info):
 
     # Local variables
     input_factor_labs = df_sobol.filter(like='Non-Uniform Water Coefficient').columns
 
     # Filter
-    invalid_index = (df_sobol['Operational Scenario'].str.contains('BAU')) & \
+    invalid_index = (df_sobol['Operational Scenario'].str.contains('OPF')) & \
                     (df_sobol['Objective'].str.contains('Cost'))  # Objectives that have no impact
     df_sobol.loc[invalid_index, input_factor_labs] = np.nan
     df_sobol._get_numeric_data()[df_sobol._get_numeric_data() < 0] = 0  # Due to numeric estimation
 
+    # Get plant information
+    df_sobol = df_sobol.melt(
+        id_vars=['Objective', 'Operational Scenario'],
+        value_vars=input_factor_labs,
+        var_name='Input Factor',
+        value_name='Sobol Index'
+    )
+    df_sobol['Plant Name'] = df_sobol['Input Factor'].str.split(' Non-Uniform Water Coefficient', expand=True)[0]
+    df_plant_info = df_gen_info.groupby('Plant Name').first().reset_index()
+    df_plant_info['Fuel/Cooling Type'] = df_plant_info['MATPOWER Fuel'] + '/' + df_plant_info['923 Cooling Type']
+    df_sobol = df_sobol.merge(df_plant_info[['Plant Name', 'Fuel/Cooling Type']])
+
     # Plot
-    g = sns.FacetGrid(df_sobol, col='Operational Scenario', height=5.5, aspect=0.6, sharey=True)
+    min_sobol = df_sobol['Sobol Index'].min()
+    max_sobol = df_sobol['Sobol Index'].max()
+    g = sns.FacetGrid(df_sobol, col='Fuel/Cooling Type', row='Operational Scenario', sharex='col', sharey=True)
     cbar_ax = g.fig.add_axes([.87, .15, .03, .7])
-    g.map_dataframe(draw_heatmap, cmap='viridis', cbar_ax=cbar_ax, cbar_kws={'label': 'First Order Sobol Index Value'})
-    g.fig.subplots_adjust(top=0.6, right=0.85)
-    g.set_titles(rotation=90)
-    axes = g.axes.flatten()
-    axes[0].set_title('Normal loading with \n traditional OPF (BAU policy)')
-    axes[1].set_title('Heatwave with traditional \n OPF (BAU policy)')
-    axes[2].set_title('Heatwave with aggressive  \n withdrawal policy')
-    axes[3].set_title('Heatwave with aggressive \n consumption policy')
+    g.map_dataframe(draw_heatmap, cmap='viridis', cbar_ax=cbar_ax, cbar_kws={'label': 'First Order Sobol Index Value'}, vmin=min_sobol, vmax=max_sobol)
+    g.set_titles(rotation=5)
+    g.fig.subplots_adjust(top=0.9, right=0.75)
     plt.show()
+
 
     return g
 
