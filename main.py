@@ -33,6 +33,7 @@ pathto_nonuniform_sa_sobol_spatial = os.path.join(pathto_data, 'temp', 'nonunifo
 
 # Paths for manual_files
 pathto_gen_matches = os.path.join(pathto_data, 'manual_files', 'gen_matches.csv')
+pathto_operational_scenarios = os.path.join(pathto_data, 'manual_files', 'operational_scenarios.csv')
 
 # Paths for external Inputs
 pathto_EIA_raw = 'G:\My Drive\Documents (Stored)\data_sets\EIA_theremoelectric_water_use'
@@ -118,7 +119,8 @@ def main():
         df_nonuniform = pd.read_csv(pathto_nonuniform_sa)
         df_nonuniform_sobol = pd.read_csv(pathto_nonuniform_sa_sobol)
     else:
-        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_gen_info_match_water, df_hnwc, obj_labs, n_tasks, net)
+        df_operation = pd.read_csv(pathto_operational_scenarios)
+        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_gen_info_match_water, df_hnwc, df_operation, obj_labs, n_tasks, net)
         df_nonuniform.to_csv(pathto_nonuniform_sa, index=False)
         df_nonuniform_sobol.to_csv(pathto_nonuniform_sa_sobol, index=False)
 

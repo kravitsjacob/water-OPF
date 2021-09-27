@@ -642,25 +642,8 @@ def MGSA_FirstOrder(Input, Output, ndomain):
     return index
 
 
-def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
+def nonuniform_sa(df_gen_info, df_hnwc, df_operation, obj_labs, n_tasks, net):
     # Internal Varrs
-    operational_dict = {0: {'Operational Scenario': 'Normal loading with traditional OPF (BAU policy)',
-                            'Withdrawal Weight ($/Gallon)': 0.0,
-                            'Consumption Weight ($/Gallon)': 0.0,
-                            'Uniform Loading Factor': 1.0},
-                        1: {'Operational Scenario': 'Heatwave with traditional OPF (BAU policy)',
-                            'Withdrawal Weight ($/Gallon)': 0.0,
-                            'Consumption Weight ($/Gallon)': 0.0,
-                            'Uniform Loading Factor': 1.5},
-                        2: {'Operational Scenario': 'Heatwave with aggressive withdrawal policy',
-                            'Withdrawal Weight ($/Gallon)': 0.1,
-                            'Consumption Weight ($/Gallon)': 0.0,
-                            'Uniform Loading Factor': 1.5},
-                        3: {'Operational Scenario': 'Heatwave with aggressive consumption policy',
-                            'Withdrawal Weight ($/Gallon)': 0.0,
-                            'Consumption Weight ($/Gallon)': 1.0,
-                            'Uniform Loading Factor': 1.5}}  # Manual specifications
-    df_operation = pd.DataFrame(operational_dict).T
     exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)'] + \
                      ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(str) + ' Withdrawal Rate (Gallon/kWh)').tolist() + \
                      ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(str) + ' Consumption Rate (Gallon/kWh)').tolist() + \
@@ -681,8 +664,6 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
     print('Number of Samples: ', len(df_sample))
 
     for index, row in df_operation.iterrows():
-
-
         # Apply Coefficients to Exogenous Parameters
         df_exogenous = get_nonuniform_exogenous(
             df_sample.copy(),
