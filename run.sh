@@ -1,6 +1,6 @@
 #!/bin/bash
 
-conda activate analysis
+conda activate water-OPF
 
 # Input Files
 pathto_case='G:\\My Drive\\Documents (Stored)\\data_sets\Illinois Synthetic Grid\ACTIVSg200\\case_ACTIVSg200.m'
@@ -15,6 +15,3 @@ matlab -nojvm -r 'to_MATPOWER; exit;'
 cd ..
 
 python main.py
-
-# Export Environment
-conda env export --no-builds --from-history > water-OPF.yml
