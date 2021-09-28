@@ -6,7 +6,6 @@ import multiprocessing
 
 import pandapower.converter
 import pandas as pd
-import geopandas as gpd
 from reportlab.graphics import renderPDF
 
 
@@ -126,7 +125,7 @@ def main():
 
     # Sobol Visualization
     if not os.path.exists(os.path.join(pathto_figures, 'First Order Heatmap.pdf')):
-        nonuniform_sobol_fig = src.nonuniform_sobol_viz(df_nonuniform_sobol)
+        nonuniform_sobol_fig = src.nonuniform_sobol_viz(df_nonuniform_sobol, df_gen_info_match_water)
         nonuniform_sobol_fig.fig.savefig(os.path.join(pathto_figures, 'First Order Heatmap.pdf'))
 
     # Historic Load Generation
@@ -138,18 +137,6 @@ def main():
     if not os.path.exists(os.path.join(pathto_tables, 'system_information.csv')):
         df_system = src.get_system_information(df_gen_info_match_water)
         df_system.to_csv(os.path.join(pathto_tables, 'system_information.csv'), index=False)
-
-    # Sobol Spatial
-    if not os.path.exists(pathto_nonuniform_sa_sobol_spatial):
-        gdf_gens = gpd.read_file(pathto_gen_locations)
-        gfd_sobol = src.get_sobol_locations(
-            operational_scenario='Heatwave with aggressive withdrawal policy',
-            obj_name='Water Withdrawal (Gallon)',
-            df=df_nonuniform_sobol,
-            df_gen_info=df_gen_info_match_water,
-            gdf=gdf_gens
-        )
-        gfd_sobol.to_file(pathto_nonuniform_sa_sobol_spatial)
 
     return 0
 

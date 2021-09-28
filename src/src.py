@@ -745,17 +745,29 @@ def nonuniform_sobol_viz(df_sobol, df_gen_info):
     df_plant_info = df_gen_info.groupby('Plant Name').first().reset_index()
     df_plant_info['Fuel/Cooling Type'] = df_plant_info['MATPOWER Fuel'] + '/' + df_plant_info['923 Cooling Type']
     df_sobol = df_sobol.merge(df_plant_info[['Plant Name', 'Fuel/Cooling Type']])
+    df_sobol = df_sobol.sort_values('Fuel/Cooling Type')
 
     # Plot
     min_sobol = df_sobol['Sobol Index'].min()
     max_sobol = df_sobol['Sobol Index'].max()
-    g = sns.FacetGrid(df_sobol, col='Fuel/Cooling Type', row='Operational Scenario', sharex='col', sharey=True)
+    g = sns.FacetGrid(df_sobol, col='Fuel/Cooling Type', row='Operational Scenario', sharex='col', sharey=True, aspect=1.0, height=1.7, margin_titles=True)
     cbar_ax = g.fig.add_axes([.87, .15, .03, .7])
     g.map_dataframe(draw_heatmap, cmap='viridis', cbar_ax=cbar_ax, cbar_kws={'label': 'First Order Sobol Index Value'}, vmin=min_sobol, vmax=max_sobol)
-    g.set_titles(rotation=5)
-    g.fig.subplots_adjust(top=0.9, right=0.75)
-    plt.show()
+    g.fig.subplots_adjust(left=0.28, right=0.75, top=0.85, bottom=0.12)
+    for row in range(g.axes.shape[0]):
+        for col in range(g.axes.shape[1]):
+            if row == 0:
+                g.axes[row, col].set_title(df_sobol['Fuel/Cooling Type'].unique()[col], rotation=90)
+            else:
+                g.axes[row, col].set_title('')
 
+            if col == g.axes.shape[1] - 1:
+                txt = df_sobol['Operational Scenario'].unique()[row].replace(' ', '\n')
+                g.axes[row, col].texts[0].set_text(txt)
+                g.axes[row, col].texts[0].set(multialignment='center', x=1.8, ha='center', rotation='horizontal')
+
+    g.set_xticklabels(rotation=90)
+    plt.show()
 
     return g
 
