@@ -11,6 +11,7 @@ import dask.dataframe as dd
 import pandapower as pp
 from dtreeviz.trees import *  # Requires pip version
 from svglib.svglib import svg2rlg
+from pandapower.plotting.plotly import pf_res_plotly
 
 
 
@@ -336,7 +337,7 @@ def matchIndex(df_geninfo, net):
     return df_geninfo
 
 
-def waterOPF(ser_exogenous, t, results_labs, net, df_geninfo):
+def waterOPF(ser_exogenous, t, results_labs, net, df_geninfo, return_state='objectives'):
     # Initialize
     df_geninfo = df_geninfo.copy()
     net = copy.deepcopy(net)  # Copy network so not changed later
@@ -391,7 +392,10 @@ def waterOPF(ser_exogenous, t, results_labs, net, df_geninfo):
     elif state == 'not converge':
         F_cos = F_with = F_con = F_gen = np.nan
         internal_decs = [np.nan]*len(df_geninfo)
-    return pd.Series([F_cos, F_gen, F_with, F_con] + internal_decs, index=results_labs)
+    if return_state == 'objectives':
+        return pd.Series([F_cos, F_gen, F_with, F_con] + internal_decs, index=results_labs)
+    elif return_state == 'net':
+        return net
 
 
 def uniform_sa(df_gen_info_match_water, net, n_tasks, n_steps, uniform_factor_labs, obj_labs):
@@ -511,14 +515,53 @@ def viz_effect_of_withdrawal_weight_plant_output(df, df_gen_info):
     plt.tight_layout()
     plt.show()
 
-    return g
+    return g, df
 
 
 def uniform_sa_dataviz(df, uniform_factor_labs, obj_labs, df_gen_info_match_water):
     fig_a = viz_effect_of_withdrawal_weight(df, uniform_factor_labs, obj_labs)
     df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info_match_water, uniform_factor_labs, obj_labs)
-    fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio, df_gen_info_match_water)
+    fig_b, df = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio, df_gen_info_match_water)
     return fig_a, fig_b
+
+
+def uniform_power_viz(df_uniform, df_gen_info, obj_labs, net):
+
+    # Local vars
+    t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
+    results_labs = obj_labs + ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(str) +
+                               ' Ratio of Capacity').to_list()
+    exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)'] + \
+                     ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(
+                         str) + ' Withdrawal Rate (Gallon/kWh)').tolist() + \
+                     ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(
+                         str) + ' Consumption Rate (Gallon/kWh)').tolist() + \
+                     ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
+
+    # Subsetting data
+    df = df_uniform[df_uniform['Consumption Weight ($/Gallon)'] == 0.0]
+    withdrawal_criteria = [0.0, 0.1, 0.1]
+    uniform_water_criteria = [0.5, 0.5, 1.5]
+    uniform_load_criteria = 1.5
+    case_a = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[0]) & (df['Uniform Water Coefficient'] == uniform_water_criteria[0]) & (df['Uniform Loading Coefficient'] == uniform_load_criteria)
+    case_b = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[1]) & (df['Uniform Water Coefficient'] == uniform_water_criteria[1]) & (df['Uniform Loading Coefficient'] == uniform_load_criteria)
+    case_c = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[2]) & (df['Uniform Water Coefficient'] == uniform_water_criteria[2]) & (df['Uniform Loading Coefficient'] == uniform_load_criteria)
+    df = df[case_a | case_b | case_c]
+
+    # Get Pandapower indices
+    df_gen_info = matchIndex(df_gen_info, net)
+
+    # Re-solve cases
+    list_nets = list(df.apply(lambda row: waterOPF(row[exogenous_labs], t, results_labs, net, df_gen_info, return_state='net'), axis=1))
+
+    # Case A visualize
+    for i, net in enumerate(list_nets):
+        title = 'Withdrawal Weight_' + str(withdrawal_criteria[i]) +\
+                '_Uniform Water Coefficient_' + str(uniform_water_criteria[i]) +\
+                '.html'
+        pf_res_plotly(net, filename=title, aspectratio=(4, 2), figsize=1.5)
+
+    return 0
 
 
 def fitSingleModels(df, obj_labs, factor_labs):
@@ -807,3 +850,5 @@ def get_system_information(df_gen_info_match_water):
     df = df_info.merge(df_gens, left_index=True, right_on='Plant Name')
 
     return df
+
+
