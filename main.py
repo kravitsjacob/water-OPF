@@ -6,7 +6,6 @@ import multiprocessing
 
 import pandapower.converter
 import pandas as pd
-import geopandas as gpd
 from reportlab.graphics import renderPDF
 
 
@@ -14,11 +13,13 @@ if len(sys.argv) > 1:
     pathto_data = sys.argv[1]
     n_tasks = int(sys.argv[2])
 else:
-    pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v1.0'
+    pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v1.1'
     n_tasks = os.cpu_count()
 
 
 # Paths for checkpoints
+pathto_matpowercase = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.mat')
+pathto_geninfo = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'gen_info.csv')
 pathto_case = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.p')
 pathto_gen_info_match = os.path.join(pathto_data, 'temp', 'gen_info_match.csv')
 pathto_gen_info_match_water = os.path.join(pathto_data, 'temp', 'gen_info_match_water.csv')
@@ -29,10 +30,12 @@ pathto_nonuniform_sa = os.path.join(pathto_data, 'temp', 'nonuniform_sa_results.
 pathto_nonuniform_sa_sobol = os.path.join(pathto_data, 'temp', 'nonuniform_sa_sobol.csv')
 pathto_nonuniform_sa_sobol_spatial = os.path.join(pathto_data, 'temp', 'nonuniform_sa_sobol_spatial', 'plants.shp')
 
+# Paths for manual_files
+pathto_gen_matches = os.path.join(pathto_data, 'manual_files', 'gen_matches.csv')
+pathto_operational_scenarios = os.path.join(pathto_data, 'manual_files', 'operational_scenarios.csv')
+
 # Paths for external Inputs
 pathto_EIA_raw = 'G:\My Drive\Documents (Stored)\data_sets\EIA_theremoelectric_water_use'
-pathto_matpowercase = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.mat')
-pathto_geninfo = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'gen_info.csv')
 pathto_load = os.path.join('G:\My Drive\Documents (Stored)\data_sets\load exogenous parameter testing V1 io',
                            '20180101-20200101 MISO Forecasted Cleared & Actual Load.csv')
 pathto_gen_locations = 'G:\My Drive\Documents (Stored)\data_sets\Illinois Synthetic Grid Gens\gens.shp'
@@ -40,6 +43,7 @@ pathto_gen_locations = 'G:\My Drive\Documents (Stored)\data_sets\Illinois Synthe
 # Paths for figures
 pathto_figures = os.path.join(pathto_data, 'figures')
 pathto_tables = os.path.join(pathto_data, 'tables')
+
 
 def main():
     # Initialize vars
@@ -60,8 +64,9 @@ def main():
     if os.path.exists(pathto_gen_info_match):
         df_gen_info_match = pd.read_csv(pathto_gen_info_match)  # Load checkpoint
     else:
+        df_gen_matches = pd.read_csv(pathto_gen_matches)
         df_gen_info = pd.read_csv(pathto_geninfo)
-        df_gen_info_match = src.generator_match(df_gen_info)
+        df_gen_info_match = src.generator_match(df_gen_info, df_gen_matches)
         print('Success: generator_match')
         df_gen_info_match.to_csv(pathto_gen_info_match, index=False)  # Save checkpoint
 
@@ -113,13 +118,14 @@ def main():
         df_nonuniform = pd.read_csv(pathto_nonuniform_sa)
         df_nonuniform_sobol = pd.read_csv(pathto_nonuniform_sa_sobol)
     else:
-        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_gen_info_match_water, df_hnwc, obj_labs, n_tasks, net)
+        df_operation = pd.read_csv(pathto_operational_scenarios)
+        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_gen_info_match_water, df_hnwc, df_operation, obj_labs, n_tasks, net)
         df_nonuniform.to_csv(pathto_nonuniform_sa, index=False)
         df_nonuniform_sobol.to_csv(pathto_nonuniform_sa_sobol, index=False)
 
     # Sobol Visualization
     if not os.path.exists(os.path.join(pathto_figures, 'First Order Heatmap.pdf')):
-        nonuniform_sobol_fig = src.nonuniform_sobol_viz(df_nonuniform_sobol)
+        nonuniform_sobol_fig = src.nonuniform_sobol_viz(df_nonuniform_sobol, df_gen_info_match_water)
         nonuniform_sobol_fig.fig.savefig(os.path.join(pathto_figures, 'First Order Heatmap.pdf'))
 
     # Historic Load Generation
@@ -131,18 +137,6 @@ def main():
     if not os.path.exists(os.path.join(pathto_tables, 'system_information.csv')):
         df_system = src.get_system_information(df_gen_info_match_water)
         df_system.to_csv(os.path.join(pathto_tables, 'system_information.csv'), index=False)
-
-    # Sobol Spatial
-    if not os.path.exists(pathto_nonuniform_sa_sobol_spatial):
-        gdf_gens = gpd.read_file(pathto_gen_locations)
-        gfd_sobol = src.get_sobol_locations(
-            operational_scenario='Heatwave with aggressive withdrawal policy',
-            obj_name='Water Withdrawal (Gallon)',
-            df=df_nonuniform_sobol,
-            df_gen_info=df_gen_info_match_water,
-            gdf=gdf_gens
-        )
-        gfd_sobol.to_file(pathto_nonuniform_sa_sobol_spatial)
 
     return 0
 

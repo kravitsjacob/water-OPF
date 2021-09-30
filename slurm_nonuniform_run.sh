@@ -15,4 +15,4 @@
 module purge
 source /curc/sw/anaconda3/2019.07/bin/activate
 conda activate water-OPF
-python -u main.py '/scratch/summit/jakr3868/water-OPF-v1.0/' 240
+python -u main.py '/scratch/summit/jakr3868/water-OPF-v1.1/' 240

@@ -11,6 +11,7 @@ import dask.dataframe as dd
 import pandapower as pp
 from dtreeviz.trees import *  # Requires pip version
 from svglib.svglib import svg2rlg
+#from pandapower.plotting.plotly import pf_res_plotly
 
 
 
@@ -23,208 +24,10 @@ def grid_setup(net):
     return net
 
 
-def generator_match(df_gen_info):
-    # This is done manually through remotely sources images and spatial analysis
-    manual_dict = {0: {'MATPOWER Index': 49,
-             'EIA Plant Name': 'Rantoul',
-             'Match Type': 'Location, Capacity',
-             'POWERWORLD Plant Name': 'RANTOUL 2'},
-         1: {'MATPOWER Index': 50,
-             'EIA Plant Name': 'Rantoul',
-             'Match Type': 'Location, Capacity',
-             'POWERWORLD Plant Name': 'RANTOUL 2'},
-         2: {'MATPOWER Index': 51,
-             'EIA Plant Name': 'Rantoul',
-             'Match Type': 'Location, Capacity',
-             'POWERWORLD Plant Name': 'RANTOUL 2'},
-         3: {'MATPOWER Index': 52,
-             'EIA Plant Name': 'Rantoul',
-             'Match Type': 'Location, Capacity',
-             'POWERWORLD Plant Name': 'RANTOUL 2'},
-         4: {'MATPOWER Index': 53,
-             'EIA Plant Name': 'Rantoul',
-             'Match Type': 'Location, Capacity',
-             'POWERWORLD Plant Name': 'RANTOUL 2'},
-         5: {'MATPOWER Index': 65,
-             'EIA Plant Name': 'Pioneer Trail Wind Farm, LLC',
-             'Match Type': 'Location, Capacity, Fuel Type',
-             'POWERWORLD Plant Name': 'PAXTON 1'},
-         6: {'MATPOWER Index': 67,
-             'EIA Plant Name': 'Archer Daniels Midland Decatur',
-             'Match Type': 'Location, Capacity, Fuel Type',
-             'POWERWORLD Plant Name': 'MOUNT ZION'},
-         7: {'MATPOWER Index': 68,
-             'EIA Plant Name': 'Archer Daniels Midland Decatur',
-             'Match Type': 'Location, Capacity, Fuel Type',
-             'POWERWORLD Plant Name': 'MOUNT ZION'},
-         8: {'MATPOWER Index': 69,
-             'EIA Plant Name': 'Archer Daniels Midland Decatur',
-             'Match Type': 'Location, Capacity, Fuel Type',
-             'POWERWORLD Plant Name': 'MOUNT ZION'},
-         9: {'MATPOWER Index': 70,
-             'EIA Plant Name': 'Archer Daniels Midland Decatur',
-             'Match Type': 'Location, Capacity, Fuel Type',
-             'POWERWORLD Plant Name': 'MOUNT ZION'},
-         10: {'MATPOWER Index': 71,
-              'EIA Plant Name': 'Archer Daniels Midland Decatur',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'MOUNT ZION'},
-         11: {'MATPOWER Index': 72,
-              'EIA Plant Name': 'Archer Daniels Midland Decatur',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'MOUNT ZION'},
-         12: {'MATPOWER Index': 73,
-              'EIA Plant Name': 'Archer Daniels Midland Decatur',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'MOUNT ZION'},
-         13: {'MATPOWER Index': 76,
-              'EIA Plant Name': 'Archer Daniels Midland Decatur',
-              'Match Type': 'Location, Capacity',
-              'POWERWORLD Plant Name': 'BRIMFIELD'},
-         14: {'MATPOWER Index': 77,
-              'EIA Plant Name': 'Archer Daniels Midland Decatur',
-              'Match Type': 'Location, Capacity',
-              'POWERWORLD Plant Name': 'BRIMFIELD'},
-         15: {'MATPOWER Index': 78,
-              'EIA Plant Name': 'Archer Daniels Midland Decatur',
-              'Match Type': 'Location, Capacity',
-              'POWERWORLD Plant Name': 'BRIMFIELD'},
-         16: {'MATPOWER Index': 79,
-              'EIA Plant Name': 'Archer Daniels Midland Decatur',
-              'Match Type': 'Location, Capacity',
-              'POWERWORLD Plant Name': 'BRIMFIELD'},
-         17: {'MATPOWER Index': 90,
-              'EIA Plant Name': 'Clinton LFGTE',
-              'Match Type': 'Location, Capacity',
-              'POWERWORLD Plant Name': 'CLINTON 3'},
-         18: {'MATPOWER Index': 91,
-              'EIA Plant Name': 'Clinton LFGTE',
-              'Match Type': 'Location, Capacity',
-              'POWERWORLD Plant Name': 'CLINTON 3'},
-         19: {'MATPOWER Index': 92,
-              'EIA Plant Name': 'Clinton LFGTE',
-              'Match Type': 'Location, Capacity',
-              'POWERWORLD Plant Name': 'CLINTON 3'},
-         20: {'MATPOWER Index': 94,
-              'EIA Plant Name': 'Tuscola Station',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'TUSCOLA 2'},
-         21: {'MATPOWER Index': 104,
-              'EIA Plant Name': 'High Trail Wind Farm LLC',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'ELLSWORTH 1'},
-         22: {'MATPOWER Index': 105,
-              'EIA Plant Name': 'High Trail Wind Farm LLC',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'ELLSWORTH 1'},
-         23: {'MATPOWER Index': 114,
-              'EIA Plant Name': 'White Oak Energy LLC',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'NORMAL 2'},
-         24: {'MATPOWER Index': 115,
-              'EIA Plant Name': 'White Oak Energy LLC',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'NORMAL 2'},
-         25: {'MATPOWER Index': 125,
-              'EIA Plant Name': 'E D Edwards',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'BARTONVILLE'},
-         26: {'MATPOWER Index': 126,
-              'EIA Plant Name': 'E D Edwards',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'BARTONVILLE'},
-         27: {'MATPOWER Index': 127,
-              'EIA Plant Name': 'E D Edwards',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'BARTONVILLE'},
-         28: {'MATPOWER Index': 135,
-              'EIA Plant Name': 'Powerton',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'PEKIN 1'},
-         29: {'MATPOWER Index': 136,
-              'EIA Plant Name': 'Powerton',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'PEKIN 1'},
-         30: {'MATPOWER Index': 147,
-              'EIA Plant Name': 'Rail Splitter Wind Farm',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'HOPEDALE 2'},
-         31: {'MATPOWER Index': 151,
-              'EIA Plant Name': 'Dallman',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'SPRINGFIELD 5'},
-         32: {'MATPOWER Index': 152,
-              'EIA Plant Name': 'Dallman',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'SPRINGFIELD 5'},
-         33: {'MATPOWER Index': 153,
-              'EIA Plant Name': 'Dallman',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'SPRINGFIELD 5'},
-         34: {'MATPOWER Index': 154,
-              'EIA Plant Name': 'Dallman',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'SPRINGFIELD 5'},
-         35: {'MATPOWER Index': 155,
-              'EIA Plant Name': 'Dallman',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'SPRINGFIELD 5'},
-         36: {'MATPOWER Index': 161,
-              'EIA Plant Name': 'Interstate',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'SPRINGFIELD 4'},
-         37: {'MATPOWER Index': 164,
-              'EIA Plant Name': 'University of Illinois Abbott Power Plt',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'CHAMPAIGN 1'},
-         38: {'MATPOWER Index': 165,
-              'EIA Plant Name': 'University of Illinois Abbott Power Plt',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'CHAMPAIGN 1'},
-         39: {'MATPOWER Index': 166,
-              'EIA Plant Name': 'University of Illinois Abbott Power Plt',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'CHAMPAIGN 1'},
-         40: {'MATPOWER Index': 167,
-              'EIA Plant Name': 'University of Illinois Abbott Power Plt',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'CHAMPAIGN 1'},
-         41: {'MATPOWER Index': 168,
-              'EIA Plant Name': 'University of Illinois Abbott Power Plt',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'CHAMPAIGN 1'},
-         42: {'MATPOWER Index': 169,
-              'EIA Plant Name': 'University of Illinois Abbott Power Plt',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'CHAMPAIGN 1'},
-         43: {'MATPOWER Index': 170,
-              'EIA Plant Name': 'University of Illinois Abbott Power Plt',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'CHAMPAIGN 1'},
-         44: {'MATPOWER Index': 182,
-              'EIA Plant Name': 'Dallman',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'SPRINGFIELD 2'},
-         45: {'MATPOWER Index': 183,
-              'EIA Plant Name': 'Dallman',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'SPRINGFIELD 2'},
-         46: {'MATPOWER Index': 189,
-              'EIA Plant Name': 'Clinton Power Station',
-              'Match Type': 'Location, Capacity',
-              'POWERWORLD Plant Name': 'CLINTON 1'},
-         47: {'MATPOWER Index': 196,
-              'EIA Plant Name': 'Gibson City Energy Center LLC',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'GIBSON CITY 1'},
-         48: {'MATPOWER Index': 197,
-              'EIA Plant Name': 'Gibson City Energy Center LLC',
-              'Match Type': 'Location, Capacity, Fuel Type',
-              'POWERWORLD Plant Name': 'GIBSON CITY 1'}}
-    df_matches = pd.DataFrame.from_records(manual_dict).T
+def generator_match(df_gen_info, df_gen_matches):
 
     # Merge manual matches
-    df_gen_info_match = df_gen_info.merge(df_matches)
+    df_gen_info_match = df_gen_info.merge(df_gen_matches)
 
     # Anonymous Plant Names
     powerworld_plants = df_gen_info_match['POWERWORLD Plant Name'].unique()
@@ -534,7 +337,7 @@ def matchIndex(df_geninfo, net):
     return df_geninfo
 
 
-def waterOPF(ser_exogenous, t, results_labs, net, df_geninfo):
+def waterOPF(ser_exogenous, t, results_labs, net, df_geninfo, return_state='objectives'):
     # Initialize
     df_geninfo = df_geninfo.copy()
     net = copy.deepcopy(net)  # Copy network so not changed later
@@ -589,7 +392,10 @@ def waterOPF(ser_exogenous, t, results_labs, net, df_geninfo):
     elif state == 'not converge':
         F_cos = F_with = F_con = F_gen = np.nan
         internal_decs = [np.nan]*len(df_geninfo)
-    return pd.Series([F_cos, F_gen, F_with, F_con] + internal_decs, index=results_labs)
+    if return_state == 'objectives':
+        return pd.Series([F_cos, F_gen, F_with, F_con] + internal_decs, index=results_labs)
+    elif return_state == 'net':
+        return net
 
 
 def uniform_sa(df_gen_info_match_water, net, n_tasks, n_steps, uniform_factor_labs, obj_labs):
@@ -709,14 +515,70 @@ def viz_effect_of_withdrawal_weight_plant_output(df, df_gen_info):
     plt.tight_layout()
     plt.show()
 
-    return g
+    return g, df
 
 
 def uniform_sa_dataviz(df, uniform_factor_labs, obj_labs, df_gen_info_match_water):
     fig_a = viz_effect_of_withdrawal_weight(df, uniform_factor_labs, obj_labs)
     df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info_match_water, uniform_factor_labs, obj_labs)
-    fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio, df_gen_info_match_water)
+    fig_b, df = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio, df_gen_info_match_water)
     return fig_a, fig_b
+
+
+def uniform_power_viz(df_uniform, df_gen_info, obj_labs, net):
+
+    # Local vars
+    t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
+    results_labs = obj_labs + ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(str) +
+                               ' Ratio of Capacity').to_list()
+    exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)'] + \
+                     ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(
+                         str) + ' Withdrawal Rate (Gallon/kWh)').tolist() + \
+                     ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(
+                         str) + ' Consumption Rate (Gallon/kWh)').tolist() + \
+                     ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
+
+    # Get Pandapower indices
+    df_gen_info = matchIndex(df_gen_info, net)
+
+    # net.line['max_loading_percent'][43] = 140
+    # net.load['p_mw'][17] = 100
+    # net.load['p_mw'][20] = 60
+    # net.load['p_mw'][3] = 100
+    # net.load['p_mw'][4:15] = 85
+
+    # Cases to visualize
+    df_search = pd.DataFrame({'Uniform Water Coefficient': [1.0],
+                              'Uniform Loading Coefficient': [1.0], # 1.6923
+                              'Withdrawal Weight ($/Gallon)': [0.0],
+                              'Consumption Weight ($/Gallon)': [0.0]})
+
+    # Multiply exogenous parameters
+    beta_with = df_gen_info['Median Withdrawal Rate (Gallon/kWh)'].values
+    beta_con = df_gen_info['Median Consumption Rate (Gallon/kWh)'].values
+    beta_load = net.load['p_mw'].values
+    df_exogenous = df_search.apply(
+        lambda row: uniformFactorMultiply(
+            row['Uniform Water Coefficient'],
+            row['Uniform Loading Coefficient'],
+            beta_with, beta_con, beta_load, exogenous_labs), axis=1)
+
+    # Combine
+    df_search = pd.concat([df_search, df_exogenous], axis=1)
+
+    # Re-solve cases
+    list_nets = list(df_search.apply(lambda row: waterOPF(row[exogenous_labs], t, results_labs, net, df_gen_info, return_state='net'), axis=1))
+
+    # Visualize
+    for i, net in enumerate(list_nets):
+        title = 'WW_' + str(df_search['Withdrawal Weight ($/Gallon)'][i]) +\
+                '_CW_' + str(df_search['Consumption Weight ($/Gallon)'][i]) +\
+                '_UWC_' + str(df_search['Uniform Water Coefficient'][i]) +\
+                '_ULC_' + str(df_search['Uniform Loading Coefficient'][i]) +\
+                '.html'
+        pf_res_plotly(net, filename=title, aspectratio=(4, 2), figsize=1.5)
+
+    return 0
 
 
 def fitSingleModels(df, obj_labs, factor_labs):
@@ -840,25 +702,8 @@ def MGSA_FirstOrder(Input, Output, ndomain):
     return index
 
 
-def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
+def nonuniform_sa(df_gen_info, df_hnwc, df_operation, obj_labs, n_tasks, net):
     # Internal Varrs
-    operational_dict = {0: {'Operational Scenario': 'Normal loading with traditional OPF (BAU policy)',
-                            'Withdrawal Weight ($/Gallon)': 0.0,
-                            'Consumption Weight ($/Gallon)': 0.0,
-                            'Uniform Loading Factor': 1.0},
-                        1: {'Operational Scenario': 'Heatwave with traditional OPF (BAU policy)',
-                            'Withdrawal Weight ($/Gallon)': 0.0,
-                            'Consumption Weight ($/Gallon)': 0.0,
-                            'Uniform Loading Factor': 1.5},
-                        2: {'Operational Scenario': 'Heatwave with aggressive withdrawal policy',
-                            'Withdrawal Weight ($/Gallon)': 0.1,
-                            'Consumption Weight ($/Gallon)': 0.0,
-                            'Uniform Loading Factor': 1.5},
-                        3: {'Operational Scenario': 'Heatwave with aggressive consumption policy',
-                            'Withdrawal Weight ($/Gallon)': 0.0,
-                            'Consumption Weight ($/Gallon)': 1.0,
-                            'Uniform Loading Factor': 1.5}}  # Manual specifications
-    df_operation = pd.DataFrame(operational_dict).T
     exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)'] + \
                      ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(str) + ' Withdrawal Rate (Gallon/kWh)').tolist() + \
                      ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(str) + ' Consumption Rate (Gallon/kWh)').tolist() + \
@@ -879,8 +724,6 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
     print('Number of Samples: ', len(df_sample))
 
     for index, row in df_operation.iterrows():
-
-
         # Apply Coefficients to Exogenous Parameters
         df_exogenous = get_nonuniform_exogenous(
             df_sample.copy(),
@@ -936,33 +779,54 @@ def nonuniform_sa(df_gen_info, df_hnwc, obj_labs, n_tasks, net):
 
 def draw_heatmap(*args, **kwargs):
     data = kwargs.pop('data')
-    data = data.set_index('Objective')
-    data.columns = [i.split(' Non-Uniform Water Coefficient')[:][0] for i in data.columns]
-    return sns.heatmap(data.iloc[:, :-1], **kwargs)
+    data = data.pivot(columns='Plant Name', index='Objective', values='Sobol Index')
+    return sns.heatmap(data, **kwargs)
 
 
-def nonuniform_sobol_viz(df_sobol):
+def nonuniform_sobol_viz(df_sobol, df_gen_info):
 
     # Local variables
     input_factor_labs = df_sobol.filter(like='Non-Uniform Water Coefficient').columns
 
     # Filter
-    invalid_index = (df_sobol['Operational Scenario'].str.contains('BAU')) & \
+    invalid_index = (df_sobol['Operational Scenario'].str.contains('OPF')) & \
                     (df_sobol['Objective'].str.contains('Cost'))  # Objectives that have no impact
     df_sobol.loc[invalid_index, input_factor_labs] = np.nan
     df_sobol._get_numeric_data()[df_sobol._get_numeric_data() < 0] = 0  # Due to numeric estimation
 
+    # Get plant information
+    df_sobol = df_sobol.melt(
+        id_vars=['Objective', 'Operational Scenario'],
+        value_vars=input_factor_labs,
+        var_name='Input Factor',
+        value_name='Sobol Index'
+    )
+    df_sobol['Plant Name'] = df_sobol['Input Factor'].str.split(' Non-Uniform Water Coefficient', expand=True)[0]
+    df_plant_info = df_gen_info.groupby('Plant Name').first().reset_index()
+    df_plant_info['Fuel/Cooling Type'] = df_plant_info['MATPOWER Fuel'] + '/' + df_plant_info['923 Cooling Type']
+    df_sobol = df_sobol.merge(df_plant_info[['Plant Name', 'Fuel/Cooling Type']])
+    df_sobol = df_sobol.sort_values('Fuel/Cooling Type')
+
     # Plot
-    g = sns.FacetGrid(df_sobol, col='Operational Scenario', height=5.5, aspect=0.6, sharey=True)
+    min_sobol = df_sobol['Sobol Index'].min()
+    max_sobol = df_sobol['Sobol Index'].max()
+    g = sns.FacetGrid(df_sobol, col='Fuel/Cooling Type', row='Operational Scenario', sharex='col', sharey=True, aspect=1.0, height=1.7, margin_titles=True)
     cbar_ax = g.fig.add_axes([.87, .15, .03, .7])
-    g.map_dataframe(draw_heatmap, cmap='viridis', cbar_ax=cbar_ax, cbar_kws={'label': 'First Order Sobol Index Value'})
-    g.fig.subplots_adjust(top=0.6, right=0.85)
-    g.set_titles(rotation=90)
-    axes = g.axes.flatten()
-    axes[0].set_title('Normal loading with \n traditional OPF (BAU policy)')
-    axes[1].set_title('Heatwave with traditional \n OPF (BAU policy)')
-    axes[2].set_title('Heatwave with aggressive  \n withdrawal policy')
-    axes[3].set_title('Heatwave with aggressive \n consumption policy')
+    g.map_dataframe(draw_heatmap, cmap='viridis', cbar_ax=cbar_ax, cbar_kws={'label': 'First Order Sobol Index Value'}, vmin=min_sobol, vmax=max_sobol)
+    g.fig.subplots_adjust(left=0.28, right=0.75, top=0.85, bottom=0.12)
+    for row in range(g.axes.shape[0]):
+        for col in range(g.axes.shape[1]):
+            if row == 0:
+                g.axes[row, col].set_title(df_sobol['Fuel/Cooling Type'].unique()[col], rotation=90)
+            else:
+                g.axes[row, col].set_title('')
+
+            if col == g.axes.shape[1] - 1:
+                txt = df_sobol['Operational Scenario'].unique()[row].replace(' ', '\n')
+                g.axes[row, col].texts[0].set_text(txt)
+                g.axes[row, col].texts[0].set(multialignment='center', x=1.8, ha='center', rotation='horizontal')
+
+    g.set_xticklabels(rotation=90)
     plt.show()
 
     return g
@@ -1005,27 +869,3 @@ def get_system_information(df_gen_info_match_water):
     return df
 
 
-def get_sobol_locations(operational_scenario, obj_name, df, df_gen_info, gdf):
-
-    # Local variables
-    input_factor_labs = df.filter(like='Non-Uniform Water Coefficient').columns
-
-    # Filtering
-    df._get_numeric_data()[df._get_numeric_data() < 0] = 0  # Due to numeric estimation
-    df = df[(df['Operational Scenario'] == operational_scenario) & (df['Objective'] == obj_name)][input_factor_labs]
-
-    # Formatting
-    df = df.T
-    df = df.rename({10: 'First Ord'}, axis=1)
-    df = df.reset_index().rename({'index': 'Input Factor'}, axis=1)
-    df['Plant Name'] = df['Input Factor'].str.split(' Non-Uniform Water Coefficient').str[0]
-
-    # Get POWERWORLD plant names
-    df_gen_info = df_gen_info.groupby('Plant Name').first()
-    df = df.merge(df_gen_info, left_on='Plant Name', right_index=True)
-
-    # Get plant locations
-    gdf = gdf.groupby('Sub Name of').first()['geometry'].to_frame()
-    gdf = gdf.merge(df, left_index=True, right_on='POWERWORLD Plant Name')
-
-    return gdf
