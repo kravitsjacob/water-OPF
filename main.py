@@ -100,11 +100,10 @@ def main():
         df_uniform.to_csv(pathto_uniform_sa, index=False)
 
     # Uniform SA Data Viz
-    if True: #not os.path.exists(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawal.pdf')):
+    if not os.path.exists(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawal.pdf')):
         fig_a, fig_b = src.uniform_sa_dataviz(df_uniform, uniform_factor_labs, obj_labs, df_gen_info_match_water)
         fig_a.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawal.pdf'))
         fig_b.fig.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Plant Output.pdf'))
-        fig_c = src.uniform_power_viz(df_uniform, df_gen_info_match_water, obj_labs, net)
 
     # Uniform SA Trees
     if not os.path.exists(os.path.join(pathto_figures, 'Total Cost (Dollar) Tree.pdf')):
