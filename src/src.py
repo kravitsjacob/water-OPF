@@ -538,26 +538,43 @@ def uniform_power_viz(df_uniform, df_gen_info, obj_labs, net):
                          str) + ' Consumption Rate (Gallon/kWh)').tolist() + \
                      ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
 
-    # Subsetting data
-    df = df_uniform[df_uniform['Consumption Weight ($/Gallon)'] == 0.0]
-    withdrawal_criteria = [0.0, 0.1, 0.1]
-    uniform_water_criteria = [0.5, 0.5, 1.5]
-    uniform_load_criteria = 1.5
-    case_a = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[0]) & (df['Uniform Water Coefficient'] == uniform_water_criteria[0]) & (df['Uniform Loading Coefficient'] == uniform_load_criteria)
-    case_b = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[1]) & (df['Uniform Water Coefficient'] == uniform_water_criteria[1]) & (df['Uniform Loading Coefficient'] == uniform_load_criteria)
-    case_c = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[2]) & (df['Uniform Water Coefficient'] == uniform_water_criteria[2]) & (df['Uniform Loading Coefficient'] == uniform_load_criteria)
-    df = df[case_a | case_b | case_c]
-
     # Get Pandapower indices
     df_gen_info = matchIndex(df_gen_info, net)
 
-    # Re-solve cases
-    list_nets = list(df.apply(lambda row: waterOPF(row[exogenous_labs], t, results_labs, net, df_gen_info, return_state='net'), axis=1))
+    # net.line['max_loading_percent'][43] = 140
+    # net.load['p_mw'][17] = 100
+    # net.load['p_mw'][20] = 60
+    # net.load['p_mw'][3] = 100
+    # net.load['p_mw'][4:15] = 85
 
-    # Case A visualize
+    # Cases to visualize
+    df_search = pd.DataFrame({'Uniform Water Coefficient': [1.0],
+                              'Uniform Loading Coefficient': [1.0], # 1.6923
+                              'Withdrawal Weight ($/Gallon)': [0.0],
+                              'Consumption Weight ($/Gallon)': [0.0]})
+
+    # Multiply exogenous parameters
+    beta_with = df_gen_info['Median Withdrawal Rate (Gallon/kWh)'].values
+    beta_con = df_gen_info['Median Consumption Rate (Gallon/kWh)'].values
+    beta_load = net.load['p_mw'].values
+    df_exogenous = df_search.apply(
+        lambda row: uniformFactorMultiply(
+            row['Uniform Water Coefficient'],
+            row['Uniform Loading Coefficient'],
+            beta_with, beta_con, beta_load, exogenous_labs), axis=1)
+
+    # Combine
+    df_search = pd.concat([df_search, df_exogenous], axis=1)
+
+    # Re-solve cases
+    list_nets = list(df_search.apply(lambda row: waterOPF(row[exogenous_labs], t, results_labs, net, df_gen_info, return_state='net'), axis=1))
+
+    # Visualize
     for i, net in enumerate(list_nets):
-        title = 'Withdrawal Weight_' + str(withdrawal_criteria[i]) +\
-                '_Uniform Water Coefficient_' + str(uniform_water_criteria[i]) +\
+        title = 'WW_' + str(df_search['Withdrawal Weight ($/Gallon)'][i]) +\
+                '_CW_' + str(df_search['Consumption Weight ($/Gallon)'][i]) +\
+                '_UWC_' + str(df_search['Uniform Water Coefficient'][i]) +\
+                '_ULC_' + str(df_search['Uniform Loading Coefficient'][i]) +\
                 '.html'
         pf_res_plotly(net, filename=title, aspectratio=(4, 2), figsize=1.5)
 
