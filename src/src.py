@@ -11,7 +11,7 @@ import dask.dataframe as dd
 import pandapower as pp
 from dtreeviz.trees import *  # Requires pip version
 from svglib.svglib import svg2rlg
-from pandapower.plotting.plotly import pf_res_plotly
+#from pandapower.plotting.plotly import pf_res_plotly
 
 
 
