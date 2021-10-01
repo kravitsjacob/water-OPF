@@ -793,7 +793,7 @@ def uniform_power_viz(df_uniform, df_gen_info, obj_labs, net):
     return 0
 
 
-def fitSingleModels(df, obj_labs, factor_labs):
+def fit_single_models(df, obj_labs, factor_labs):
     mods = {}
     for i in obj_labs:
         clf = tree.DecisionTreeRegressor(random_state=1008, max_depth=5, max_leaf_nodes=12)
@@ -817,9 +817,9 @@ def dtreeViz(mods, df, uniform_factor_labs):
     return drawing_ls
 
 
-def uniform_sa_tree(df, obj_labs, uniform_factor_labs):
-    mods = fitSingleModels(df, obj_labs, uniform_factor_labs)
-    drawing_ls = dtreeViz(mods, df, uniform_factor_labs)
+def uniform_sa_tree(df, net):
+    mods = fit_single_models(df, net.objective_labs, net.uniform_input_factor_labs)
+    drawing_ls = dtreeViz(mods, df, net.uniform_input_factor_labs)
     return drawing_ls
 
 
