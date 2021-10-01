@@ -338,8 +338,6 @@ def coal_plotter(df):
 
 def cooling_system_information(net, df_EIA):
 
-    # Initialize
-
     # Convert generator information dataframe (this makes the processing easier)
     df_gen_info = network_to_gen_info(net)
 
@@ -383,52 +381,69 @@ def optimization_information(net):
                       'Generator Cost ($)',
                       'Water Withdrawal (Gallon)',
                       'Water Consumption (Gallon)']
+    internal_cost_term_labs = ['Cost Term ($)',
+                                      'Cost Term ($/MW)',
+                                      'Cost Term ($/MW^2)']
+    uniform_input_factor_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)',
+                                 'Uniform Loading Coefficient', 'Uniform Water Coefficient']
+    internal_water_term_labs = ['Withdrawal Term ($/MW)', 'Consumption Term ($/MW)']
+    internal_poly_cost_labs = ['cp0_eur', 'cp1_eur_per_mw', 'cp2_eur_per_mw2']
     withdrawal_rate_labs = []
     consumption_rate_labs = []
+    power_labs = []
 
-    # Dispatching all generators
     for gen_type in gen_types:
+
+        # Storing Pandapower information
+        getattr(net, gen_type)['PANDAPOWER Index'] = getattr(net, gen_type).index.tolist()
+        getattr(net, gen_type)['PANDAPOWER Type'] = gen_type
 
         # Dispatching all generators
         getattr(net, gen_type)['in_service'] = True
 
+        generator_indices = 'MATPOWER Generator ' + getattr(net, gen_type)['MATPOWER Index'].astype(str)
         # Exogenous labels
-        withdrawal_rate_labs.extend(
-            ('MATPOWER Generator ' + getattr(net, gen_type)['MATPOWER Index'].astype(
-                str) + ' Withdrawal Rate (Gallon/kWh)').tolist()
-        )
-        consumption_rate_labs.extend(
-            ('MATPOWER Generator ' + getattr(net, gen_type)['MATPOWER Index'].astype(
-                str) + ' Consumption Rate (Gallon/kWh)').tolist()
-        )
+        withdrawal_rate_labs.extend((generator_indices + ' Withdrawal Rate (Gallon/kWh)').tolist())
+        consumption_rate_labs.extend((generator_indices + ' Consumption Rate (Gallon/kWh)').tolist())
+
+        # Power labels
+        power_labs.extend((generator_indices + ' Power Output (MW)').tolist())
 
     # Combining exogenous parameter labels
     load_labs = ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
     exogenous_labs = ['Withdrawal Weight ($/Gallon)',
                       'Consumption Weight ($/Gallon)'] + withdrawal_rate_labs + consumption_rate_labs + load_labs
 
+    # Output labels
+    results_labs = objective_labs + power_labs
+
     # Set attributes
     setattr(net, 'exogenous_labs', exogenous_labs)
     setattr(net, 'objective_labs', objective_labs)
-    a = 1
+    setattr(net, 'results_labs', results_labs)
+    setattr(net, 'uniform_input_factor_labs', uniform_input_factor_labs)
 
-    # Adding exogenous parameters labels
-    exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)'] + \
-                     ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Withdrawal Rate (Gallon/kWh)').tolist() + \
-                     ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Consumption Rate (Gallon/kWh)').tolist() + \
-                     ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
+    # Storing optimization terms (these are written during optimization)
+    net.poly_cost[internal_water_term_labs] = np.nan
+    net.poly_cost[internal_cost_term_labs] = net.poly_cost[internal_poly_cost_labs]
+    net.poly_cost[internal_poly_cost_labs] = np.nan
 
-    exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)']
+    # Add MATPOWER index to poly_cost
+    df_gen_info = network_to_gen_info(net)  # Turn into dataframe to make easier merge
+    net.poly_cost['MATPOWER Index'] = \
+    net.poly_cost.merge(df_gen_info, left_on=['element', 'et'], right_on=['PANDAPOWER Index', 'PANDAPOWER Type'])[
+        'MATPOWER Index']
 
     return net
 
-def uniformFactorMultiply(c_water, c_load, beta_with, beta_con, beta_load, exogenous_labs):
+
+def uniform_input_factor_multiply(c_water, c_load, beta_with, beta_con, beta_load, labs):
     vals = np.concatenate((c_water * beta_with, c_water * beta_con, c_load * beta_load))
-    idxs = exogenous_labs[2:]
-    return pd.Series(vals, index=idxs)
+    return pd.Series(vals, index=labs)
 
 
-def getSearch(df_gridspecs, df_geninfo, net, exogenous_labs):
+def get_uniform_search(df_gridspecs):
+
     # Set Search Values
     w_with_vals = np.linspace(df_gridspecs['Min']['Withdrawal Weight ($/Gallon)'],
                               df_gridspecs['Max']['Withdrawal Weight ($/Gallon)'],
@@ -442,131 +457,181 @@ def getSearch(df_gridspecs, df_geninfo, net, exogenous_labs):
     c_water_vals = np.linspace(df_gridspecs['Min']['Uniform Water Coefficient'],
                                df_gridspecs['Max']['Uniform Water Coefficient'],
                                df_gridspecs['Number of Steps']['Uniform Water Coefficient'])
+
     # Create Grid
-    df_search = pd.DataFrame(list(itertools.product(w_with_vals, w_con_vals, c_load_vals, c_water_vals)), columns=df_gridspecs.index)
-    # Multiply exogenous parameters
-    beta_with = df_geninfo['Median Withdrawal Rate (Gallon/kWh)'].values
-    beta_con = df_geninfo['Median Consumption Rate (Gallon/kWh)'].values
-    beta_load = net.load['p_mw'].values
-    df_exogenous = df_search.apply(lambda row: uniformFactorMultiply(row['Uniform Water Coefficient'], row['Uniform Loading Coefficient'], beta_with, beta_con, beta_load, exogenous_labs), axis=1)
-    # Combine
-    df_search = pd.concat([df_search, df_exogenous], axis=1)
+    df_search = pd.DataFrame(
+        list(itertools.product(w_with_vals, w_con_vals, c_load_vals, c_water_vals)), columns=df_gridspecs.index
+    )
+
     return df_search
 
 
-def matchIndex(df_geninfo, net):
-    # Initialize
-    df_gen = pd.DataFrame()
-    df_sgen = pd.DataFrame()
-    df_ext_grid = pd.DataFrame()
-    # Generators
-    df_gen['MATPOWER Index'] = net.gen['bus'] + 1
-    df_gen['PANDAPOWER Index'] = net.gen['bus'].index.to_list()
-    df_gen['PANDAPOWER Bus Type'] = 'gen'
-    # Static Generators
-    df_sgen['MATPOWER Index'] = net.sgen['bus'] + 1
-    df_sgen['PANDAPOWER Index'] = net.sgen['bus'].index.to_list()
-    df_sgen['PANDAPOWER Bus Type'] = 'sgen'
-    # External Grid
-    df_ext_grid['MATPOWER Index'] = net.ext_grid['bus'] + 1
-    df_ext_grid['PANDAPOWER Index'] = net.ext_grid['bus'].index.to_list()
-    df_ext_grid['PANDAPOWER Bus Type'] = 'ext_grid'
-    # Combine
-    df_match = pd.concat([df_gen, df_sgen, df_ext_grid])
-    df_match.reset_index()
-    # Join
-    df_geninfo = df_geninfo.merge(df_match, on='MATPOWER Index')
-    return df_geninfo
+# def matchIndex(df_geninfo, net):
+#     # Initialize
+#     df_gen = pd.DataFrame()
+#     df_sgen = pd.DataFrame()
+#     df_ext_grid = pd.DataFrame()
+#     # Generators
+#     df_gen['MATPOWER Index'] = net.gen['bus'] + 1
+#     df_gen['PANDAPOWER Index'] = net.gen['bus'].index.to_list()
+#     df_gen['PANDAPOWER Bus Type'] = 'gen'
+#     # Static Generators
+#     df_sgen['MATPOWER Index'] = net.sgen['bus'] + 1
+#     df_sgen['PANDAPOWER Index'] = net.sgen['bus'].index.to_list()
+#     df_sgen['PANDAPOWER Bus Type'] = 'sgen'
+#     # External Grid
+#     df_ext_grid['MATPOWER Index'] = net.ext_grid['bus'] + 1
+#     df_ext_grid['PANDAPOWER Index'] = net.ext_grid['bus'].index.to_list()
+#     df_ext_grid['PANDAPOWER Bus Type'] = 'ext_grid'
+#     # Combine
+#     df_match = pd.concat([df_gen, df_sgen, df_ext_grid])
+#     df_match.reset_index()
+#     # Join
+#     df_geninfo = df_geninfo.merge(df_match, on='MATPOWER Index')
+#     return df_geninfo
 
 
-def waterOPF(ser_exogenous, t, results_labs, net, df_geninfo, return_state='objectives'):
-    # Initialize
-    df_geninfo = df_geninfo.copy()
-    net = copy.deepcopy(net)  # Copy network so not changed later
-    obj_colnames = ['cp0_eur', 'cp1_eur_per_mw', 'cp2_eur_per_mw2']
-    idx_colnames = ['element', 'et']
+def water_OPF(exogenous_dict, net, t):
+
+    # Convert dictionary to series
+    ser_exogenous = pd.Series(exogenous_dict)
+
     # Create DataFrame of loads
     df_load = ser_exogenous[ser_exogenous.index.str.contains('Load')].to_frame('Load (MW)')
     df_load['bus'] = df_load.index.str.extract('(\d+)').astype(int).values
     df_load.reset_index(inplace=True, drop=True)
-    # Create DataFrame of cost values
-    df_cost = net.poly_cost[idx_colnames + obj_colnames]
-    # Create DataFrame of withdrawal values
+
+    # Assign Loads
+    net.load = net.load.merge(df_load)
+    net.load['p_mw'] = net.load['Load (MW)']
+
+    # Create DataFrame of withdrawal and consumption values
     df_withdrawal = ser_exogenous[ser_exogenous.index.str.contains('Withdrawal Rate')].to_frame('Withdrawal Rate (Gallon/kWh)')
     df_withdrawal['MATPOWER Index'] = df_withdrawal.index.str.extract('(\d+)').astype(int).values
     df_withdrawal.reset_index(inplace=True, drop=True)
+
+    # Assign withdrawal terms
+    net.poly_cost = net.poly_cost.merge(df_withdrawal)
+
     # Create DataFrame of consumption values
     df_consumption = ser_exogenous[ser_exogenous.index.str.contains('Consumption Rate')].to_frame('Consumption Rate (Gallon/kWh)')
     df_consumption['MATPOWER Index'] = df_consumption.index.str.extract('(\d+)').astype(int).values
     df_consumption.reset_index(inplace=True, drop=True)
-    # Write objectives information to generator information
-    df_geninfo[['Cost Term ($)', 'Cost Term ($/MW)', 'Cost Term ($/MW^2)']] = df_geninfo.merge(df_cost, left_on=['PANDAPOWER Index', 'PANDAPOWER Bus Type'], right_on=idx_colnames)[obj_colnames]
-    df_geninfo['Withdrawal Rate (Gallon/kWh)'] = df_geninfo.merge(df_withdrawal, on='MATPOWER Index')['Withdrawal Rate (Gallon/kWh)']
-    df_geninfo['Consumption Rate (Gallon/kWh)'] = df_geninfo.merge(df_consumption, on='MATPOWER Index')['Consumption Rate (Gallon/kWh)']
-    # Convert Units
-    df_geninfo['Withdrawal Rate (Gallon/MW)'] = df_geninfo['Withdrawal Rate (Gallon/kWh)'] * t  # minutes * hr/minutes * kw/MW
-    df_geninfo['Consumption Rate (Gallon/MW)'] = df_geninfo['Consumption Rate (Gallon/kWh)'] * t  # minutes * hr/minutes * kw/MW
-    # Combine and weight objectives
-    df_geninfo['Weighted Linear Term'] = df_geninfo['Cost Term ($/MW)'] + df_geninfo['Withdrawal Rate (Gallon/MW)'] * ser_exogenous['Withdrawal Weight ($/Gallon)'] + df_geninfo['Consumption Rate (Gallon/MW)'] * ser_exogenous['Consumption Weight ($/Gallon)']
-    # Assign exogenous parameters to case
-    net.poly_cost[obj_colnames] = net.poly_cost.merge(df_geninfo, left_on=idx_colnames, right_on=['PANDAPOWER Index', 'PANDAPOWER Bus Type'])[['Cost Term ($)', 'Weighted Linear Term', 'Cost Term ($/MW^2)']]
-    net.load['p_mw'] = net.load.merge(df_load)['Load (MW)']
+
+    # Assign consumption terms
+    net.poly_cost = net.poly_cost.merge(df_consumption)
+
+    # Convert water use units (t: minutes * hr/minutes * kw/MW)
+    net.poly_cost['Withdrawal Power Rate (Gallon/MW)'] = net.poly_cost['Withdrawal Rate (Gallon/kWh)'] * t
+    net.poly_cost['Consumption Power Rate (Gallon/MW)'] = net.poly_cost['Consumption Rate (Gallon/kWh)'] * t
+
+    # Get water terms
+    net.poly_cost['Withdrawal Term ($/MW)'] = net.poly_cost['Withdrawal Power Rate (Gallon/MW)'] * ser_exogenous['Withdrawal Weight ($/Gallon)']
+    net.poly_cost['Consumption Term ($/MW)'] = net.poly_cost['Consumption Power Rate (Gallon/MW)'] * ser_exogenous['Consumption Weight ($/Gallon)']
+
+    # Assign terms
+    net.poly_cost['cp0_eur'] = net.poly_cost['Cost Term ($)']
+    net.poly_cost['cp1_eur_per_mw'] =\
+        net.poly_cost[['Cost Term ($/MW)', 'Withdrawal Term ($/MW)', 'Consumption Term ($/MW)']].sum(1)
+    net.poly_cost['cp2_eur_per_mw2'] = net.poly_cost['Cost Term ($/MW^2)']
+
     # Run DC OPF
     try:
         pp.rundcopp(net)
-        state = 'converge'
     except:
-        state = 'not converge'
-    # Output Depended on State
-    if state == 'converge':
-        # Extract internal decisions (power output)
-        for type in ['gen', 'sgen', 'ext_grid']:
-            idxs = df_geninfo.index[df_geninfo['PANDAPOWER Bus Type'] == type]
-            df_geninfo.loc[idxs, 'Power Output (MW)'] = df_geninfo.iloc[idxs, :].merge(net['res_'+type], left_on='PANDAPOWER Index', right_index=True)['p_mw']
-        # Compute Capacity Ratios
-        df_geninfo['Ratio of Capacity'] = df_geninfo['Power Output (MW)'] / df_geninfo['MATPOWER Capacity (MW)']
-        # Compute Objectives
-        F_gen = (df_geninfo['Cost Term ($)'] + df_geninfo['Power Output (MW)'] * df_geninfo['Cost Term ($/MW)'] + df_geninfo['Power Output (MW)']**2 * df_geninfo['Cost Term ($/MW^2)']).sum()
-        F_with = (df_geninfo['Power Output (MW)'] * df_geninfo['Withdrawal Rate (Gallon/MW)']).sum()
-        F_con = (df_geninfo['Power Output (MW)'] * df_geninfo['Consumption Rate (Gallon/MW)']).sum()
-        F_cos = F_gen + ser_exogenous['Withdrawal Weight ($/Gallon)']*F_with + ser_exogenous['Consumption Weight ($/Gallon)']*F_con
-        internal_decs = df_geninfo['Ratio of Capacity'].to_list()
-    elif state == 'not converge':
-        F_cos = F_with = F_con = F_gen = np.nan
-        internal_decs = [np.nan]*len(df_geninfo)
-    if return_state == 'objectives':
-        return pd.Series([F_cos, F_gen, F_with, F_con] + internal_decs, index=results_labs)
-    elif return_state == 'net':
-        return net
+        print('Warning: Optimization did not converge')
+
+    return net
 
 
+def get_internal(net):
+    # Initialize local vars
+    gen_types = ['res_gen', 'res_sgen', 'res_ext_grid']
+    df_internal = pd.DataFrame()
+
+    for gen_type in gen_types:
+        # Storing pandapower information
+        getattr(net, gen_type)['PANDAPOWER Index'] = getattr(net, gen_type).index.tolist()
+        getattr(net, gen_type)['PANDAPOWER Type'] = gen_type.split('_', 1)[1]  # Elliminates 'res_'
+
+        # Appending
+        df_internal = df_internal.append(getattr(net, gen_type))
+
+    df_internal = df_internal.reset_index(drop=True)  # Important to eliminate duplicated indices
+
+    return df_internal
 
 
+def uniform_water_OPF_wrapper(ser_exogenous, t, net):
+    # Initialize local vars
+    net = copy.deepcopy(net)  # Copy network so not changed later
 
-def uniform_sa(df_gen_info_match_water, net, n_tasks, n_steps, uniform_factor_labs, obj_labs):
-    # Initialize
-    exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)'] + \
-                     ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Withdrawal Rate (Gallon/kWh)').tolist() + \
-                     ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Consumption Rate (Gallon/kWh)').tolist() + \
-                     ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
-    results_labs = obj_labs + ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Ratio of Capacity').to_list()
+    # Run OPF
+    net = water_OPF(ser_exogenous.to_dict(), net, t)
 
-    df_gridspecs = pd.DataFrame(data=[[0.0, 0.1, n_steps], [0.0, 1.0, n_steps], [1.0, 1.5, n_steps], [0.5, 1.5, n_steps]],
-                                index=uniform_factor_labs, columns=['Min', 'Max', 'Number of Steps'])
+    # Extract internal decisions
+    df_internal = get_internal(net)
+    df_internal = df_internal.merge(
+        net.poly_cost, right_on=['element', 'et'], left_on=['PANDAPOWER Index', 'PANDAPOWER Type']
+    )
+
+    # Compute objectives
+    F_gen = (df_internal['Cost Term ($)'] + df_internal['p_mw'] * df_internal['Cost Term ($/MW)'] + df_internal['p_mw'] ** 2 * df_internal['Cost Term ($/MW^2)']).sum(min_count=1)
+    F_with = (df_internal['p_mw'] * df_internal['Withdrawal Power Rate (Gallon/MW)']).sum(min_count=1)
+    F_con = (df_internal['p_mw'] * df_internal['Consumption Power Rate (Gallon/MW)']).sum(min_count=1)
+    F_cos = F_gen +\
+            ser_exogenous['Withdrawal Weight ($/Gallon)'] * F_with +\
+            ser_exogenous['Consumption Weight ($/Gallon)'] * F_con
+
+    # Formatting Export
+    vals = [F_cos, F_gen, F_with, F_con] + df_internal['p_mw'].to_list()
+    ser_results = pd.Series(vals, index=net.results_labs)
+
+    return ser_results
+
+
+def uniform_sa(net, n_tasks, n_steps):
+    # Initialize local vars
+    df_gridspecs = pd.DataFrame(data=[[0.0, 0.1, n_steps], [0.0, 1.0, n_steps], [1.0, 1.8, n_steps], [0.5, 1.5, n_steps]],
+                                index=net.uniform_input_factor_labs, columns=['Min', 'Max', 'Number of Steps'])
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
-    print('Success: Initialized')
-    # Get Pandapower indices
-    df_gen_info_match_water = matchIndex(df_gen_info_match_water, net)
-    # Get Grid
-    df_search = getSearch(df_gridspecs, df_gen_info_match_water, net, exogenous_labs)
+    print('Success: Initialized Uniform Sensitivity Analysis')
+
+    # Get input factor search space
+    df_search = get_uniform_search(df_gridspecs)
     print('Number of Searches: ', len(df_search))
     print('Success: Grid Created')
-    # Run Search
-    ddf_search = dd.from_pandas(df_search, npartitions=n_tasks)
-    df_results = ddf_search.apply(lambda row: waterOPF(row[exogenous_labs], t, results_labs, net, df_gen_info_match_water), axis=1, meta={key:'float64' for key in results_labs}).compute(scheduler='processes')
-    df_uniform = pd.concat([df_results, df_search], axis=1)
-    df_uniform.drop_duplicates()  # Sometimes the parallel jobs replicate rows
+
+    # Convert generator information dataframe (this makes the processing easier)
+    df_gen_info = network_to_gen_info(net)
+
+    # Multiply median exogenous coefficient values by input factors
+    beta_with_median = df_gen_info['Median Withdrawal Rate (Gallon/kWh)'].values
+    beta_con_median = df_gen_info['Median Consumption Rate (Gallon/kWh)'].values
+    beta_load_median = net.load['p_mw'].values
+    df_exogenous = df_search.apply(lambda row: uniform_input_factor_multiply(
+        row['Uniform Water Coefficient'],
+        row['Uniform Loading Coefficient'],
+        beta_with_median,
+        beta_con_median,
+        beta_load_median,
+        net.exogenous_labs[2:]  # First two parameters in df_search
+    ), axis=1)
+
+    # Combine input factor grid and exogenous parameters
+    df_samples = pd.concat([df_search, df_exogenous], axis=1)
+
+    # Run Sampling
+    ddf_search = dd.from_pandas(df_samples, npartitions=n_tasks)
+    df_results = ddf_search.apply(
+        lambda row: uniform_water_OPF_wrapper(row[net.exogenous_labs], t, net),
+        axis=1,
+        meta=pd.DataFrame(columns=net.results_labs, dtype='float64')
+    ).compute(scheduler='processes')
+    df_uniform = pd.concat([df_results, df_samples], axis=1)
+    df_uniform = df_uniform.drop_duplicates()  # Sometimes the parallel jobs replicate rows
     print('Success: Grid Searched')
+
     return df_uniform
 
 

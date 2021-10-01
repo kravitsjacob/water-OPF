@@ -23,7 +23,7 @@ pathto_geninfo = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'gen_info.c
 pathto_case = os.path.join(pathto_data, 'temp', 'case.p')
 pathto_case_match = os.path.join(pathto_data, 'temp', 'case_match.p')
 pathto_case_match_water = os.path.join(pathto_data, 'temp', 'case_match_water.p')
-
+pathto_case_match_water_optimize = os.path.join(pathto_data, 'temp', 'case_match_water_optimize_ready.p')
 
 pathto_EIA = os.path.join(pathto_data, 'temp', 'EIA.h5')
 pathto_hnwc = os.path.join(pathto_data, 'temp', 'hnwc.csv')
@@ -48,11 +48,6 @@ pathto_tables = os.path.join(pathto_data, 'tables')
 
 
 def main():
-    # Initialize vars
-    uniform_factor_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)',
-                           'Uniform Loading Coefficient', 'Uniform Water Coefficient']
-    obj_labs = ['Total Cost ($)', 'Generator Cost ($)',	'Water Withdrawal (Gallon)', 'Water Consumption (Gallon)']
-
     # Setting up grid
     if not os.path.exists(pathto_case):
         net = pandapower.converter.from_mpc(pathto_matpowercase)
@@ -90,17 +85,18 @@ def main():
         pandapower.to_pickle(net, pathto_case_match_water)  # Save checkpoint
         df_hnwc.to_csv(pathto_hnwc, index=False)  # Save checkpoint
 
-    net = pandapower.from_pickle(pathto_case_match_water)  # Load checkpoint
-    df_hnwc = pd.read_csv(pathto_hnwc)  # Load checkpoint
+    # Prepare network for optimization
+    if not os.path.exists(pathto_case_match_water_optimize):
+        net = pandapower.from_pickle(pathto_case_match_water)  # Load previous checkpoint
+        net = src.optimization_information(net)
+        pandapower.to_pickle(net, pathto_case_match_water_optimize)
 
-
-    # Uniform SA TODO
-    if os.path.exists(pathto_uniform_sa):
-        df_uniform = pd.read_csv(pathto_uniform_sa)  # Load Checkpoint
-    else:
-        df_uniform = src.uniform_sa(df_gen_info_match_water, net, n_tasks, 10, uniform_factor_labs, obj_labs)
+    # Uniform SA
+    if not os.path.exists(pathto_uniform_sa):
+        net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
+        df_uniform = src.uniform_sa(net, n_tasks, 2)
         df_uniform.to_csv(pathto_uniform_sa, index=False)
-
+    a = 1
     # Uniform SA Data Viz
     if not os.path.exists(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawal.pdf')):
         fig_a, fig_b = src.uniform_sa_dataviz(df_uniform, uniform_factor_labs, obj_labs, df_gen_info_match_water)
@@ -120,6 +116,7 @@ def main():
         df_nonuniform = pd.read_csv(pathto_nonuniform_sa)
         df_nonuniform_sobol = pd.read_csv(pathto_nonuniform_sa_sobol)
     else:
+        df_hnwc = pd.read_csv(pathto_hnwc)  # Load previous checkpoint
         df_operation = pd.read_csv(pathto_operational_scenarios)
         df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_gen_info_match_water, df_hnwc, df_operation, obj_labs, n_tasks, net)
         df_nonuniform.to_csv(pathto_nonuniform_sa, index=False)
