@@ -13,7 +13,7 @@ if len(sys.argv) > 1:
     pathto_data = sys.argv[1]
     n_tasks = int(sys.argv[2])
 else:
-    pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v1.1'
+    pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v2.0'
     n_tasks = os.cpu_count()
 
 
@@ -56,7 +56,7 @@ def main():
         net = pandapower.from_pickle(pathto_case)  # Load checkpoint
     else:
         net = pandapower.converter.from_mpc(pathto_matpowercase)
-        net = src.grid_setup(net)
+        net = src.grid_setup(net, df_gen_info)
         print('Success: convert_matpower')
         pandapower.to_pickle(net, pathto_case)  # Save checkpoint
 

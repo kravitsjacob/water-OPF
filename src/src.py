@@ -21,6 +21,7 @@ def grid_setup(net):
     net.gen['in_service'] = True
     net.ext_grid['in_service'] = True
 
+
     return net
 
 
