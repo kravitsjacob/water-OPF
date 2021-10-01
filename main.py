@@ -54,9 +54,7 @@ def main():
     obj_labs = ['Total Cost ($)', 'Generator Cost ($)',	'Water Withdrawal (Gallon)', 'Water Consumption (Gallon)']
 
     # Setting up grid
-    if os.path.exists(pathto_case):
-        net = pandapower.from_pickle(pathto_case)  # Load checkpoint
-    else:
+    if not os.path.exists(pathto_case):
         net = pandapower.converter.from_mpc(pathto_matpowercase)
         df_gen_info = pd.read_csv(pathto_geninfo)
         net = src.grid_setup(net, df_gen_info)
@@ -64,19 +62,15 @@ def main():
         pandapower.to_pickle(net, pathto_case)  # Save checkpoint
 
     # Manual generator matching
-    if os.path.exists(pathto_case_match):
-        net = pandapower.from_pickle(pathto_case_match)  # Load checkpoint
-    else:
+    if not os.path.exists(pathto_case_match):
+        net = pandapower.from_pickle(pathto_case)  # Load previous checkpoint
         df_gen_matches = pd.read_csv(pathto_gen_matches)
         net = src.generator_match(net, df_gen_matches)
         print('Success: generator_match')
         pandapower.to_pickle(net, pathto_case_match)  # Save checkpoint
 
     # Cooling system information
-    if os.path.exists(pathto_case_match_water):
-        net = pandapower.from_pickle(pathto_case_match_water)  # Load checkpoint
-        df_hnwc = pd.read_csv(pathto_hnwc)  # Load checkpoint
-    else:
+    if not os.path.exists(pathto_case_match_water):
         # Import EIA data
         if os.path.exists(pathto_EIA):
             df_EIA = pd.read_hdf(pathto_EIA, 'df_EIA')  # Load checkpoint
@@ -84,6 +78,8 @@ def main():
             df_EIA = src.import_EIA(pathto_EIA_raw)
             print('Success: import_EIA')
             df_EIA.to_hdf(pathto_EIA, key='df_EIA', mode='w')  # Save checkpoint
+
+        net = pandapower.from_pickle(pathto_case_match)  # Load previous checkpoint
         net, df_hnwc, fig_region_distributution_plotter, fig_region_box_plotter, fig_coal_plotter, fig_hnwc_plotter = \
             src.cooling_system_information(net, df_EIA)
         print('Success: cooling_system_information')
@@ -93,6 +89,10 @@ def main():
         fig_hnwc_plotter.savefig(os.path.join(pathto_figures, 'historic nonuniform water coefficient histograms.pdf'))
         pandapower.to_pickle(net, pathto_case_match_water)  # Save checkpoint
         df_hnwc.to_csv(pathto_hnwc, index=False)  # Save checkpoint
+
+    net = pandapower.from_pickle(pathto_case_match_water)  # Load checkpoint
+    df_hnwc = pd.read_csv(pathto_hnwc)  # Load checkpoint
+
 
     # Uniform SA TODO
     if os.path.exists(pathto_uniform_sa):
