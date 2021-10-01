@@ -48,6 +48,13 @@ pathto_tables = os.path.join(pathto_data, 'tables')
 
 
 def main():
+    # Local vars
+    n_uniform_steps = 10
+    n_nonuniform_samples = 1024 * (2 * 10 + 2)  # for saltelli sampling 1024
+
+    n_uniform_steps = 5
+    n_nonuniform_samples = 500
+
     # Setting up grid
     if not os.path.exists(pathto_case):
         net = pandapower.converter.from_mpc(pathto_matpowercase)
@@ -94,7 +101,7 @@ def main():
     # Uniform SA
     if not os.path.exists(pathto_uniform_sa):
         net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
-        df_uniform = src.uniform_sa(net, n_tasks, 4)
+        df_uniform = src.uniform_sa(net, n_tasks, n_uniform_steps)
         df_uniform.to_csv(pathto_uniform_sa, index=False)  # Save checkpoint
 
     # Uniform SA Data Viz
@@ -120,9 +127,9 @@ def main():
         net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
         df_hnwc = pd.read_csv(pathto_hnwc)  # Load previous checkpoint
         df_operation = pd.read_csv(pathto_operational_scenarios)
-        n_sample = 1024 * (2 * 10 + 2)  # for saltelli sampling 1024
-        n_sample = 50
-        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net)
+        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(
+            df_hnwc, df_operation, n_tasks, n_nonuniform_samples, net
+        )
         df_nonuniform.to_csv(pathto_nonuniform_sa, index=False)  # Save checkpoint
         df_nonuniform_sobol.to_csv(pathto_nonuniform_sa_sobol, index=False)  # Save checkpoint
 

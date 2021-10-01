@@ -1084,19 +1084,21 @@ def historic_load_viz(df):
     return fig
 
 
-def get_system_information(df_gen_info_match_water):
+def get_system_information(net):
+    # Convert generator information dataframe (this makes the processing easier)
+    df_gen_info = network_to_gen_info(net)
 
     # Generator aggregation
-    df_gens = df_gen_info_match_water.groupby('Plant Name')['MATPOWER Index'].apply(set).reset_index(name='Generators')
+    df_gens = df_gen_info.groupby('Plant Name')['MATPOWER Index'].apply(set).reset_index(name='Generators')
     df_gens['Generators'] = df_gens.apply(
         lambda row: ', '.join([str(element) for element in row['Generators']]),
         axis=1
     )
 
-    df_capacity = df_gen_info_match_water.groupby('Plant Name').sum()
+    df_capacity = df_gen_info.groupby('Plant Name').sum()
 
     # Remaining information
-    df_info = df_gen_info_match_water.groupby('Plant Name').first().drop('MATPOWER Capacity (MW)', axis='columns')
+    df_info = df_gen_info.groupby('Plant Name').first().drop('MATPOWER Capacity (MW)', axis='columns')
 
     # Merging
     df_info = df_info.join(df_capacity['MATPOWER Capacity (MW)'])
