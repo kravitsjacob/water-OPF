@@ -114,22 +114,24 @@ def main():
         renderPDF.drawToFile(drawing_ls[1], os.path.join(pathto_figures, 'Generator Cost (Dollar) Tree.pdf'))
         renderPDF.drawToFile(drawing_ls[2], os.path.join(pathto_figures, 'Water Withdrawal (Gallon) Tree.pdf'))
         renderPDF.drawToFile(drawing_ls[3], os.path.join(pathto_figures, 'Water Consumption (Gallon) Tree.pdf'))
-    #
-    # # Nonuniform SA
-    # if os.path.exists(pathto_nonuniform_sa_sobol):
-    #     df_nonuniform = pd.read_csv(pathto_nonuniform_sa)
-    #     df_nonuniform_sobol = pd.read_csv(pathto_nonuniform_sa_sobol)
-    # else:
-    #     df_hnwc = pd.read_csv(pathto_hnwc)  # Load previous checkpoint
-    #     df_operation = pd.read_csv(pathto_operational_scenarios)
-    #     df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_gen_info_match_water, df_hnwc, df_operation, obj_labs, n_tasks, net)
-    #     df_nonuniform.to_csv(pathto_nonuniform_sa, index=False)
-    #     df_nonuniform_sobol.to_csv(pathto_nonuniform_sa_sobol, index=False)
-    #
-    # # Sobol Visualization
-    # if not os.path.exists(os.path.join(pathto_figures, 'First Order Heatmap.pdf')):
-    #     nonuniform_sobol_fig = src.nonuniform_sobol_viz(df_nonuniform_sobol, df_gen_info_match_water)
-    #     nonuniform_sobol_fig.fig.savefig(os.path.join(pathto_figures, 'First Order Heatmap.pdf'))
+
+    # Nonuniform SA
+    if not os.path.exists(pathto_nonuniform_sa_sobol):
+        net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
+        df_hnwc = pd.read_csv(pathto_hnwc)  # Load previous checkpoint
+        df_operation = pd.read_csv(pathto_operational_scenarios)
+        n_sample = 1024 * (2 * 10 + 2)  # for saltelli sampling 1024
+        n_sample = 50
+        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net)
+        df_nonuniform.to_csv(pathto_nonuniform_sa, index=False)  # Save checkpoint
+        df_nonuniform_sobol.to_csv(pathto_nonuniform_sa_sobol, index=False)  # Save checkpoint
+
+    # Sobol Visualization
+    if not os.path.exists(os.path.join(pathto_figures, 'First Order Heatmap.pdf')):
+        net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
+        df_nonuniform_sobol = pd.read_csv(pathto_nonuniform_sa_sobol)
+        nonuniform_sobol_fig = src.nonuniform_sobol_viz(df_nonuniform_sobol, net)
+        nonuniform_sobol_fig.fig.savefig(os.path.join(pathto_figures, 'First Order Heatmap.pdf'))
     #
     # # Historic Load Generation
     # if not os.path.exists(os.path.join(pathto_figures, 'Load Distribution.pdf')):
