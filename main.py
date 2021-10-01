@@ -132,16 +132,17 @@ def main():
         df_nonuniform_sobol = pd.read_csv(pathto_nonuniform_sa_sobol)
         nonuniform_sobol_fig = src.nonuniform_sobol_viz(df_nonuniform_sobol, net)
         nonuniform_sobol_fig.fig.savefig(os.path.join(pathto_figures, 'First Order Heatmap.pdf'))
-    #
-    # # Historic Load Generation
-    # if not os.path.exists(os.path.join(pathto_figures, 'Load Distribution.pdf')):
-    #     df_historic_loads = pd.read_csv(pathto_load)
-    #     src.historic_load_viz(df_historic_loads).savefig(os.path.join(pathto_figures, 'Load Distribution.pdf'))
-    #
-    # # System Information Table
-    # if not os.path.exists(os.path.join(pathto_tables, 'system_information.csv')):
-    #     df_system = src.get_system_information(df_gen_info_match_water)
-    #     df_system.to_csv(os.path.join(pathto_tables, 'system_information.csv'), index=False)
+
+    # Historic Load Generation
+    if not os.path.exists(os.path.join(pathto_figures, 'Load Distribution.pdf')):
+        df_historic_loads = pd.read_csv(pathto_load)
+        src.historic_load_viz(df_historic_loads).savefig(os.path.join(pathto_figures, 'Load Distribution.pdf'))
+
+    # System Information Table
+    if not os.path.exists(os.path.join(pathto_tables, 'system_information.csv')):
+        net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
+        df_system = src.get_system_information(net)
+        df_system.to_csv(os.path.join(pathto_tables, 'system_information.csv'), index=False)
 
     return 0
 

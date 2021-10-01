@@ -1013,10 +1013,12 @@ def draw_heatmap(*args, **kwargs):
     return sns.heatmap(data, **kwargs)
 
 
-def nonuniform_sobol_viz(df_sobol, df_gen_info):
-
+def nonuniform_sobol_viz(df_sobol, net):
     # Local variables
     input_factor_labs = df_sobol.filter(like='Non-Uniform Water Coefficient').columns
+
+    # Convert generator information dataframe (this makes the processing easier)
+    df_gen_info = network_to_gen_info(net)
 
     # Filter
     invalid_index = (df_sobol['Operational Scenario'].str.contains('OPF')) & \
@@ -1057,6 +1059,10 @@ def nonuniform_sobol_viz(df_sobol, df_gen_info):
                 g.axes[row, col].texts[0].set(multialignment='center', x=1.8, ha='center', rotation='horizontal')
 
     g.set_xticklabels(rotation=90)
+    g.set_xlabels('')
+    g.set_ylabels('')
+
+    # Display plot
     plt.show()
 
     return g
