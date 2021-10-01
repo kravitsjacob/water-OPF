@@ -52,9 +52,6 @@ def main():
     n_uniform_steps = 10
     n_nonuniform_samples = 1024 * (2 * 10 + 2)  # for saltelli sampling 1024
 
-    n_uniform_steps = 5
-    n_nonuniform_samples = 500
-
     # Setting up grid
     if not os.path.exists(pathto_case):
         net = pandapower.converter.from_mpc(pathto_matpowercase)
