@@ -74,7 +74,7 @@ def main():
 
     # Cooling system information
     if os.path.exists(pathto_case_match_water):
-        df_gen_info_match_water = pd.read_csv(pathto_gen_info_match_water)  # Load checkpoint
+        net = pandapower.from_pickle(pathto_case_match_water)  # Load checkpoint
         df_hnwc = pd.read_csv(pathto_hnwc)  # Load checkpoint
     else:
         # Import EIA data
@@ -84,17 +84,17 @@ def main():
             df_EIA = src.import_EIA(pathto_EIA_raw)
             print('Success: import_EIA')
             df_EIA.to_hdf(pathto_EIA, key='df_EIA', mode='w')  # Save checkpoint
-        df_gen_info_match_water, df_hnwc, fig_regionDistribututionPlotter, fig_regionBoxPlotter, fig_coalPlotter,\
-        fig_hnwc_plotter = src.cooling_system_information(df_gen_info_match, df_EIA)
+        net, df_hnwc, fig_region_distributution_plotter, fig_region_box_plotter, fig_coal_plotter, fig_hnwc_plotter = \
+            src.cooling_system_information(net, df_EIA)
         print('Success: cooling_system_information')
-        fig_regionDistribututionPlotter.savefig(os.path.join(pathto_figures, 'uniform water coefficient distribution.pdf'))
-        fig_regionBoxPlotter.savefig(os.path.join(pathto_figures, 'region water boxplots.pdf'))
-        fig_coalPlotter.savefig(os.path.join(pathto_figures, 'coal scatter kmeans.pdf'))
+        fig_region_distributution_plotter.savefig(os.path.join(pathto_figures, 'uniform water coefficient distribution.pdf'))
+        fig_region_box_plotter.savefig(os.path.join(pathto_figures, 'region water boxplots.pdf'))
+        fig_coal_plotter.savefig(os.path.join(pathto_figures, 'coal scatter kmeans.pdf'))
         fig_hnwc_plotter.savefig(os.path.join(pathto_figures, 'historic nonuniform water coefficient histograms.pdf'))
-        df_gen_info_match_water.to_csv(pathto_gen_info_match_water, index=False)  # Save checkpoint
+        pandapower.to_pickle(net, pathto_case_match_water)  # Save checkpoint
         df_hnwc.to_csv(pathto_hnwc, index=False)  # Save checkpoint
 
-    # Uniform SA
+    # Uniform SA TODO
     if os.path.exists(pathto_uniform_sa):
         df_uniform = pd.read_csv(pathto_uniform_sa)  # Load Checkpoint
     else:
