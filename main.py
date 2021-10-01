@@ -94,48 +94,50 @@ def main():
     # Uniform SA
     if not os.path.exists(pathto_uniform_sa):
         net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
-        df_uniform = src.uniform_sa(net, n_tasks, 2)
-        df_uniform.to_csv(pathto_uniform_sa, index=False)
-    a = 1
+        df_uniform = src.uniform_sa(net, n_tasks, 4)
+        df_uniform.to_csv(pathto_uniform_sa, index=False)  # Save checkpoint
+
     # Uniform SA Data Viz
     if not os.path.exists(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawal.pdf')):
-        fig_a, fig_b = src.uniform_sa_dataviz(df_uniform, uniform_factor_labs, obj_labs, df_gen_info_match_water)
+        net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
+        df_uniform = pd.read_csv(pathto_uniform_sa)  # Load previous checkpoint
+        fig_a, fig_b = src.uniform_sa_dataviz(df_uniform, net)
         fig_a.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawal.pdf'))
         fig_b.fig.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Plant Output.pdf'))
 
-    # Uniform SA Trees
-    if not os.path.exists(os.path.join(pathto_figures, 'Total Cost (Dollar) Tree.pdf')):
-        drawing_ls = src.uniform_sa_tree(df_uniform, obj_labs, uniform_factor_labs)
-        renderPDF.drawToFile(drawing_ls[0], os.path.join(pathto_figures, 'Total Cost (Dollar) Tree.pdf'))
-        renderPDF.drawToFile(drawing_ls[1], os.path.join(pathto_figures, 'Generator Cost (Dollar) Tree.pdf'))
-        renderPDF.drawToFile(drawing_ls[2], os.path.join(pathto_figures, 'Water Withdrawal (Gallon) Tree.pdf'))
-        renderPDF.drawToFile(drawing_ls[3], os.path.join(pathto_figures, 'Water Consumption (Gallon) Tree.pdf'))
-
-    # Nonuniform SA
-    if os.path.exists(pathto_nonuniform_sa_sobol):
-        df_nonuniform = pd.read_csv(pathto_nonuniform_sa)
-        df_nonuniform_sobol = pd.read_csv(pathto_nonuniform_sa_sobol)
-    else:
-        df_hnwc = pd.read_csv(pathto_hnwc)  # Load previous checkpoint
-        df_operation = pd.read_csv(pathto_operational_scenarios)
-        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_gen_info_match_water, df_hnwc, df_operation, obj_labs, n_tasks, net)
-        df_nonuniform.to_csv(pathto_nonuniform_sa, index=False)
-        df_nonuniform_sobol.to_csv(pathto_nonuniform_sa_sobol, index=False)
-
-    # Sobol Visualization
-    if not os.path.exists(os.path.join(pathto_figures, 'First Order Heatmap.pdf')):
-        nonuniform_sobol_fig = src.nonuniform_sobol_viz(df_nonuniform_sobol, df_gen_info_match_water)
-        nonuniform_sobol_fig.fig.savefig(os.path.join(pathto_figures, 'First Order Heatmap.pdf'))
-
-    # Historic Load Generation
-    if not os.path.exists(os.path.join(pathto_figures, 'Load Distribution.pdf')):
-        df_historic_loads = pd.read_csv(pathto_load)
-        src.historic_load_viz(df_historic_loads).savefig(os.path.join(pathto_figures, 'Load Distribution.pdf'))
-
-    # System Information Table
-    if not os.path.exists(os.path.join(pathto_tables, 'system_information.csv')):
-        df_system = src.get_system_information(df_gen_info_match_water)
-        df_system.to_csv(os.path.join(pathto_tables, 'system_information.csv'), index=False)
+    # # Uniform SA Trees
+    # if not os.path.exists(os.path.join(pathto_figures, 'Total Cost (Dollar) Tree.pdf')):
+    #     drawing_ls = src.uniform_sa_tree(df_uniform, obj_labs, uniform_factor_labs)
+    #     renderPDF.drawToFile(drawing_ls[0], os.path.join(pathto_figures, 'Total Cost (Dollar) Tree.pdf'))
+    #     renderPDF.drawToFile(drawing_ls[1], os.path.join(pathto_figures, 'Generator Cost (Dollar) Tree.pdf'))
+    #     renderPDF.drawToFile(drawing_ls[2], os.path.join(pathto_figures, 'Water Withdrawal (Gallon) Tree.pdf'))
+    #     renderPDF.drawToFile(drawing_ls[3], os.path.join(pathto_figures, 'Water Consumption (Gallon) Tree.pdf'))
+    #
+    # # Nonuniform SA
+    # if os.path.exists(pathto_nonuniform_sa_sobol):
+    #     df_nonuniform = pd.read_csv(pathto_nonuniform_sa)
+    #     df_nonuniform_sobol = pd.read_csv(pathto_nonuniform_sa_sobol)
+    # else:
+    #     df_hnwc = pd.read_csv(pathto_hnwc)  # Load previous checkpoint
+    #     df_operation = pd.read_csv(pathto_operational_scenarios)
+    #     df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_gen_info_match_water, df_hnwc, df_operation, obj_labs, n_tasks, net)
+    #     df_nonuniform.to_csv(pathto_nonuniform_sa, index=False)
+    #     df_nonuniform_sobol.to_csv(pathto_nonuniform_sa_sobol, index=False)
+    #
+    # # Sobol Visualization
+    # if not os.path.exists(os.path.join(pathto_figures, 'First Order Heatmap.pdf')):
+    #     nonuniform_sobol_fig = src.nonuniform_sobol_viz(df_nonuniform_sobol, df_gen_info_match_water)
+    #     nonuniform_sobol_fig.fig.savefig(os.path.join(pathto_figures, 'First Order Heatmap.pdf'))
+    #
+    # # Historic Load Generation
+    # if not os.path.exists(os.path.join(pathto_figures, 'Load Distribution.pdf')):
+    #     df_historic_loads = pd.read_csv(pathto_load)
+    #     src.historic_load_viz(df_historic_loads).savefig(os.path.join(pathto_figures, 'Load Distribution.pdf'))
+    #
+    # # System Information Table
+    # if not os.path.exists(os.path.join(pathto_tables, 'system_information.csv')):
+    #     df_system = src.get_system_information(df_gen_info_match_water)
+    #     df_system.to_csv(os.path.join(pathto_tables, 'system_information.csv'), index=False)
 
     return 0
 

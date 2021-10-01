@@ -592,7 +592,7 @@ def uniform_water_OPF_wrapper(ser_exogenous, t, net):
 
 def uniform_sa(net, n_tasks, n_steps):
     # Initialize local vars
-    df_gridspecs = pd.DataFrame(data=[[0.0, 0.1, n_steps], [0.0, 1.0, n_steps], [1.0, 1.8, n_steps], [0.5, 1.5, n_steps]],
+    df_gridspecs = pd.DataFrame(data=[[0.0, 0.1, n_steps], [0.0, 1.0, n_steps], [1.0, 1.5, n_steps], [0.5, 1.5, n_steps]],
                                 index=net.uniform_input_factor_labs, columns=['Min', 'Max', 'Number of Steps'])
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
     print('Success: Initialized Uniform Sensitivity Analysis')
@@ -661,15 +661,13 @@ def get_plant_output_ratio(df, df_gen_info, uniform_factor_labs, obj_labs):
     plant_names = df_gen_info['Plant Name'].unique().tolist()
 
     # Get generator output
-    df_capacity_ratio = df.loc[:, df.columns.str.contains('Ratio of Capacity')]
-    df_capacity_ratio.columns = df_capacity_ratio.columns.str.extract('(\d+)').astype(int)[0].tolist()
-    df_capacity_ratio = df_capacity_ratio.transpose()
-    ser_gen_capacity = pd.Series(df_gen_info['MATPOWER Capacity (MW)'].values, index=df_gen_info['MATPOWER Index'])
-    df_gen_output = df_capacity_ratio.multiply(ser_gen_capacity, axis='index')
+    df_power_output = df.loc[:, df.columns.str.contains('Power Output')]
+    df_power_output.columns = df_power_output.columns.str.extract('(\d+)').astype(int)[0].tolist()
+    df_power_output = df_power_output.transpose()
 
     # Combine into plants
-    df_gen_output = df_gen_output.merge(df_gen_info, left_index=True, right_on='MATPOWER Index')
-    df_plant_capacity_ratio = df_gen_output.groupby(['Plant Name']).sum()
+    df_power_output = df_power_output.merge(df_gen_info, left_index=True, right_on='MATPOWER Index')
+    df_plant_capacity_ratio = df_power_output.groupby(['Plant Name']).sum()
 
     # Get Ratio
     df_plant_capacity_ratio = df_plant_capacity_ratio.iloc[:, 0:n_runs].divide(df_plant_capacity_ratio['MATPOWER Capacity (MW)'], axis='index') # Hardcoded
@@ -687,7 +685,7 @@ def get_plant_output_ratio(df, df_gen_info, uniform_factor_labs, obj_labs):
     return df_plant_capacity_ratio
 
 
-def viz_effect_of_withdrawal_weight_plant_output(df, df_gen_info):
+def viz_effect_of_withdrawal_weight_plant_output(df):
 
     # Subsetting data
     df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
@@ -698,11 +696,10 @@ def viz_effect_of_withdrawal_weight_plant_output(df, df_gen_info):
     case_c = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[2]) & (df['Uniform Water Coefficient'] == uniform_water_criteria[2])
     df = df[case_a | case_b | case_c]
 
-
     # Making labels
     df['Withdrawal Weight ($/Gallon)'] = df['Withdrawal Weight ($/Gallon)'].astype('category')
     df['Fuel/Cooling Type'] = df['MATPOWER Fuel'] + '/' + df['923 Cooling Type']
-    df = df.sort_values('Fuel/Cooling Type')
+    df = df.sort_values(['Uniform Water Coefficient', 'Fuel/Cooling Type'])
     df['ID'] = '$w_{with}=$' + df['Withdrawal Weight ($/Gallon)'].astype(str) + ', $c_{water}=$' + df['Uniform Water Coefficient'].astype(str)
 
     # Creating plot
@@ -729,10 +726,14 @@ def viz_effect_of_withdrawal_weight_plant_output(df, df_gen_info):
     return g, df
 
 
-def uniform_sa_dataviz(df, uniform_factor_labs, obj_labs, df_gen_info_match_water):
-    fig_a = viz_effect_of_withdrawal_weight(df, uniform_factor_labs, obj_labs)
-    df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info_match_water, uniform_factor_labs, obj_labs)
-    fig_b, df = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio, df_gen_info_match_water)
+def uniform_sa_dataviz(df, net):
+    # Convert to generator information dataframe
+    df_gen_info = network_to_gen_info(net)
+
+    # Visualization
+    fig_a = viz_effect_of_withdrawal_weight(df, net.uniform_input_factor_labs, net.objective_labs)
+    df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info, net.uniform_input_factor_labs, net.objective_labs)
+    fig_b, df = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
     return fig_a, fig_b
 
 
