@@ -22,9 +22,9 @@ pathto_matpowercase = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.
 pathto_geninfo = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'gen_info.csv')
 pathto_case = os.path.join(pathto_data, 'temp', 'case.p')
 pathto_case_match = os.path.join(pathto_data, 'temp', 'case_match.p')
+pathto_case_match_water = os.path.join(pathto_data, 'temp', 'case_match_water.p')
 
 
-pathto_gen_info_match_water = os.path.join(pathto_data, 'temp', 'gen_info_match_water.csv')
 pathto_EIA = os.path.join(pathto_data, 'temp', 'EIA.h5')
 pathto_hnwc = os.path.join(pathto_data, 'temp', 'hnwc.csv')
 pathto_uniform_sa = os.path.join(pathto_data, 'temp', 'uniform_sa_results.csv')
@@ -64,17 +64,16 @@ def main():
         pandapower.to_pickle(net, pathto_case)  # Save checkpoint
 
     # Manual generator matching
-    if os.path.exists(pathto_gen_info_match):
-        df_gen_info_match = pd.read_csv(pathto_gen_info_match)  # Load checkpoint
+    if os.path.exists(pathto_case_match):
+        net = pandapower.from_pickle(pathto_case_match)  # Load checkpoint
     else:
         df_gen_matches = pd.read_csv(pathto_gen_matches)
-        df_gen_info = pd.read_csv(pathto_geninfo)
-        df_gen_info_match = src.generator_match(df_gen_info, df_gen_matches)
+        net = src.generator_match(net, df_gen_matches)
         print('Success: generator_match')
-        df_gen_info_match.to_csv(pathto_gen_info_match, index=False)  # Save checkpoint
+        pandapower.to_pickle(net, pathto_case_match)  # Save checkpoint
 
     # Cooling system information
-    if os.path.exists(pathto_gen_info_match_water):
+    if os.path.exists(pathto_case_match_water):
         df_gen_info_match_water = pd.read_csv(pathto_gen_info_match_water)  # Load checkpoint
         df_hnwc = pd.read_csv(pathto_hnwc)  # Load checkpoint
     else:

@@ -35,34 +35,22 @@ def grid_setup(net, df_gen_info):
     return net
 
 
-    df_gen = pd.DataFrame()
-    df_sgen = pd.DataFrame()
-    df_ext_grid = pd.DataFrame()
-    # Generators
-    df_gen['MATPOWER Index'] = net.gen['bus'] + 1
-    df_gen['PANDAPOWER Index'] = net.gen['bus'].index.to_list()
-    df_gen['PANDAPOWER Bus Type'] = 'gen'
-    # Static Generators
-    df_sgen['MATPOWER Index'] = net.sgen['bus'] + 1
-    df_sgen['PANDAPOWER Index'] = net.sgen['bus'].index.to_list()
-    df_sgen['PANDAPOWER Bus Type'] = 'sgen'
-    # External Grid
-    df_ext_grid['MATPOWER Index'] = net.ext_grid['bus'] + 1
-    df_ext_grid['PANDAPOWER Index'] = net.ext_grid['bus'].index.to_list()
-    df_ext_grid['PANDAPOWER Bus Type'] = 'ext_grid'
+def generator_match(net, df_gen_matches):
 
-def generator_match(df_gen_info, df_gen_matches):
+    # Initialize local vars
+    gen_types = ['gen', 'sgen', 'ext_grid']
 
-    # Merge manual matches
-    df_gen_info_match = df_gen_info.merge(df_gen_matches)
-
-    # Anonymous Plant Names
-    powerworld_plants = df_gen_info_match['POWERWORLD Plant Name'].unique()
+    # Anonymous plant names
+    powerworld_plants = df_gen_matches['POWERWORLD Plant Name'].unique()
     anonymous_plants = [f'Plant {i}' for i in range(1, len(powerworld_plants) + 1)]
     d = dict(zip(powerworld_plants, anonymous_plants))
-    df_gen_info_match['Plant Name'] = df_gen_info_match['POWERWORLD Plant Name'].map(d)
+    df_gen_matches['Plant Name'] = df_gen_matches['POWERWORLD Plant Name'].map(d)
 
-    return df_gen_info_match
+    # Merge manual matches
+    for gen_type in gen_types:
+        setattr(net, gen_type, getattr(net, gen_type).merge(df_gen_matches))
+
+    return net
 
 
 def import_EIA(pathto_EIA):
