@@ -45,11 +45,6 @@ def grid_setup(net, df_gen_info):
     # Initialize local vars
     gen_types = ['gen', 'sgen', 'ext_grid']
 
-    # Dispatching all generators
-    net.sgen['in_service'] = True
-    net.gen['in_service'] = True
-    net.ext_grid['in_service'] = True
-
     # Add pandapower index
     for gen_type in gen_types:
         getattr(net, gen_type)['MATPOWER Index'] = getattr(net, gen_type)['bus'] + 1
@@ -379,6 +374,54 @@ def cooling_system_information(net, df_EIA):
 
     return net, df_hnwc, fig_region_distributution_plotter, fig_region_box_plotter, fig_coal_plotter, fig_hnwc_plotter
 
+
+def optimization_information(net):
+
+    # Initialize local vars
+    gen_types = ['gen', 'sgen', 'ext_grid']
+    objective_labs = ['Total Cost ($)',
+                      'Generator Cost ($)',
+                      'Water Withdrawal (Gallon)',
+                      'Water Consumption (Gallon)']
+    withdrawal_rate_labs = []
+    consumption_rate_labs = []
+
+    # Dispatching all generators
+    for gen_type in gen_types:
+
+        # Dispatching all generators
+        getattr(net, gen_type)['in_service'] = True
+
+        # Exogenous labels
+        withdrawal_rate_labs.extend(
+            ('MATPOWER Generator ' + getattr(net, gen_type)['MATPOWER Index'].astype(
+                str) + ' Withdrawal Rate (Gallon/kWh)').tolist()
+        )
+        consumption_rate_labs.extend(
+            ('MATPOWER Generator ' + getattr(net, gen_type)['MATPOWER Index'].astype(
+                str) + ' Consumption Rate (Gallon/kWh)').tolist()
+        )
+
+    # Combining exogenous parameter labels
+    load_labs = ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
+    exogenous_labs = ['Withdrawal Weight ($/Gallon)',
+                      'Consumption Weight ($/Gallon)'] + withdrawal_rate_labs + consumption_rate_labs + load_labs
+
+    # Set attributes
+    setattr(net, 'exogenous_labs', exogenous_labs)
+    setattr(net, 'objective_labs', objective_labs)
+    a = 1
+
+    # Adding exogenous parameters labels
+    exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)'] + \
+                     ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Withdrawal Rate (Gallon/kWh)').tolist() + \
+                     ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Consumption Rate (Gallon/kWh)').tolist() + \
+                     ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
+
+    exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)']
+
+    return net
+
 def uniformFactorMultiply(c_water, c_load, beta_with, beta_con, beta_load, exogenous_labs):
     vals = np.concatenate((c_water * beta_with, c_water * beta_con, c_load * beta_load))
     idxs = exogenous_labs[2:]
@@ -497,6 +540,9 @@ def waterOPF(ser_exogenous, t, results_labs, net, df_geninfo, return_state='obje
         return net
 
 
+
+
+
 def uniform_sa(df_gen_info_match_water, net, n_tasks, n_steps, uniform_factor_labs, obj_labs):
     # Initialize
     exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)'] + \
@@ -504,6 +550,7 @@ def uniform_sa(df_gen_info_match_water, net, n_tasks, n_steps, uniform_factor_la
                      ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Consumption Rate (Gallon/kWh)').tolist() + \
                      ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
     results_labs = obj_labs + ('MATPOWER Generator ' + df_gen_info_match_water['MATPOWER Index'].astype(str) + ' Ratio of Capacity').to_list()
+
     df_gridspecs = pd.DataFrame(data=[[0.0, 0.1, n_steps], [0.0, 1.0, n_steps], [1.0, 1.5, n_steps], [0.5, 1.5, n_steps]],
                                 index=uniform_factor_labs, columns=['Min', 'Max', 'Number of Steps'])
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
