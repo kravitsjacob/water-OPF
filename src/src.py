@@ -15,15 +15,41 @@ from svglib.svglib import svg2rlg
 
 
 
-def grid_setup(net):
+def grid_setup(net, df_gen_info):
+
+    # Initialize local vars
+    gen_types = ['gen', 'sgen', 'ext_grid']
+
     # Dispatching all generators
     net.sgen['in_service'] = True
     net.gen['in_service'] = True
     net.ext_grid['in_service'] = True
 
+    for gen_type in gen_types:
+        # Getting pandapower index
+        getattr(net, gen_type)['MATPOWER Index'] = getattr(net, gen_type)['bus'] + 1
+
+        # Getting generator information
+        setattr(net, gen_type, getattr(net, gen_type).merge(df_gen_info))
 
     return net
 
+
+    df_gen = pd.DataFrame()
+    df_sgen = pd.DataFrame()
+    df_ext_grid = pd.DataFrame()
+    # Generators
+    df_gen['MATPOWER Index'] = net.gen['bus'] + 1
+    df_gen['PANDAPOWER Index'] = net.gen['bus'].index.to_list()
+    df_gen['PANDAPOWER Bus Type'] = 'gen'
+    # Static Generators
+    df_sgen['MATPOWER Index'] = net.sgen['bus'] + 1
+    df_sgen['PANDAPOWER Index'] = net.sgen['bus'].index.to_list()
+    df_sgen['PANDAPOWER Bus Type'] = 'sgen'
+    # External Grid
+    df_ext_grid['MATPOWER Index'] = net.ext_grid['bus'] + 1
+    df_ext_grid['PANDAPOWER Index'] = net.ext_grid['bus'].index.to_list()
+    df_ext_grid['PANDAPOWER Bus Type'] = 'ext_grid'
 
 def generator_match(df_gen_info, df_gen_matches):
 

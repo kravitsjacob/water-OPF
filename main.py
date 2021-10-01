@@ -20,8 +20,10 @@ else:
 # Paths for checkpoints
 pathto_matpowercase = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.mat')
 pathto_geninfo = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'gen_info.csv')
-pathto_case = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.p')
-pathto_gen_info_match = os.path.join(pathto_data, 'temp', 'gen_info_match.csv')
+pathto_case = os.path.join(pathto_data, 'temp', 'case.p')
+pathto_case_match = os.path.join(pathto_data, 'temp', 'case_match.p')
+
+
 pathto_gen_info_match_water = os.path.join(pathto_data, 'temp', 'gen_info_match_water.csv')
 pathto_EIA = os.path.join(pathto_data, 'temp', 'EIA.h5')
 pathto_hnwc = os.path.join(pathto_data, 'temp', 'hnwc.csv')
@@ -56,8 +58,9 @@ def main():
         net = pandapower.from_pickle(pathto_case)  # Load checkpoint
     else:
         net = pandapower.converter.from_mpc(pathto_matpowercase)
+        df_gen_info = pd.read_csv(pathto_geninfo)
         net = src.grid_setup(net, df_gen_info)
-        print('Success: convert_matpower')
+        print('Success: grid_setup')
         pandapower.to_pickle(net, pathto_case)  # Save checkpoint
 
     # Manual generator matching
