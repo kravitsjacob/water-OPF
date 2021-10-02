@@ -13,16 +13,18 @@ if len(sys.argv) > 1:
     pathto_data = sys.argv[1]
     n_tasks = int(sys.argv[2])
 else:
-    pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v1.1'
+    pathto_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v2.0'
     n_tasks = os.cpu_count()
 
 
 # Paths for checkpoints
 pathto_matpowercase = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.mat')
 pathto_geninfo = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'gen_info.csv')
-pathto_case = os.path.join(pathto_data, 'temp', 'synthetic_grid', 'case.p')
-pathto_gen_info_match = os.path.join(pathto_data, 'temp', 'gen_info_match.csv')
-pathto_gen_info_match_water = os.path.join(pathto_data, 'temp', 'gen_info_match_water.csv')
+pathto_case = os.path.join(pathto_data, 'temp', 'case.p')
+pathto_case_match = os.path.join(pathto_data, 'temp', 'case_match.p')
+pathto_case_match_water = os.path.join(pathto_data, 'temp', 'case_match_water.p')
+pathto_case_match_water_optimize = os.path.join(pathto_data, 'temp', 'case_match_water_optimize_ready.p')
+
 pathto_EIA = os.path.join(pathto_data, 'temp', 'EIA.h5')
 pathto_hnwc = os.path.join(pathto_data, 'temp', 'hnwc.csv')
 pathto_uniform_sa = os.path.join(pathto_data, 'temp', 'uniform_sa_results.csv')
@@ -46,35 +48,28 @@ pathto_tables = os.path.join(pathto_data, 'tables')
 
 
 def main():
-    # Initialize vars
-    uniform_factor_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)',
-                           'Uniform Loading Coefficient', 'Uniform Water Coefficient']
-    obj_labs = ['Total Cost ($)', 'Generator Cost ($)',	'Water Withdrawal (Gallon)', 'Water Consumption (Gallon)']
+    # Local vars
+    n_uniform_steps = 10
+    n_nonuniform_samples = 1024 * (2 * 10 + 2)  # for saltelli sampling 1024
 
     # Setting up grid
-    if os.path.exists(pathto_case):
-        net = pandapower.from_pickle(pathto_case)  # Load checkpoint
-    else:
+    if not os.path.exists(pathto_case):
         net = pandapower.converter.from_mpc(pathto_matpowercase)
-        net = src.grid_setup(net)
-        print('Success: convert_matpower')
+        df_gen_info = pd.read_csv(pathto_geninfo)
+        net = src.grid_setup(net, df_gen_info)
+        print('Success: grid_setup')
         pandapower.to_pickle(net, pathto_case)  # Save checkpoint
 
     # Manual generator matching
-    if os.path.exists(pathto_gen_info_match):
-        df_gen_info_match = pd.read_csv(pathto_gen_info_match)  # Load checkpoint
-    else:
+    if not os.path.exists(pathto_case_match):
+        net = pandapower.from_pickle(pathto_case)  # Load previous checkpoint
         df_gen_matches = pd.read_csv(pathto_gen_matches)
-        df_gen_info = pd.read_csv(pathto_geninfo)
-        df_gen_info_match = src.generator_match(df_gen_info, df_gen_matches)
+        net = src.generator_match(net, df_gen_matches)
         print('Success: generator_match')
-        df_gen_info_match.to_csv(pathto_gen_info_match, index=False)  # Save checkpoint
+        pandapower.to_pickle(net, pathto_case_match)  # Save checkpoint
 
     # Cooling system information
-    if os.path.exists(pathto_gen_info_match_water):
-        df_gen_info_match_water = pd.read_csv(pathto_gen_info_match_water)  # Load checkpoint
-        df_hnwc = pd.read_csv(pathto_hnwc)  # Load checkpoint
-    else:
+    if not os.path.exists(pathto_case_match_water):
         # Import EIA data
         if os.path.exists(pathto_EIA):
             df_EIA = pd.read_hdf(pathto_EIA, 'df_EIA')  # Load checkpoint
@@ -82,50 +77,64 @@ def main():
             df_EIA = src.import_EIA(pathto_EIA_raw)
             print('Success: import_EIA')
             df_EIA.to_hdf(pathto_EIA, key='df_EIA', mode='w')  # Save checkpoint
-        df_gen_info_match_water, df_hnwc, fig_regionDistribututionPlotter, fig_regionBoxPlotter, fig_coalPlotter,\
-        fig_hnwc_plotter = src.cooling_system_information(df_gen_info_match, df_EIA)
+
+        net = pandapower.from_pickle(pathto_case_match)  # Load previous checkpoint
+        net, df_hnwc, fig_region_distributution_plotter, fig_region_box_plotter, fig_coal_plotter, fig_hnwc_plotter = \
+            src.cooling_system_information(net, df_EIA)
         print('Success: cooling_system_information')
-        fig_regionDistribututionPlotter.savefig(os.path.join(pathto_figures, 'uniform water coefficient distribution.pdf'))
-        fig_regionBoxPlotter.savefig(os.path.join(pathto_figures, 'region water boxplots.pdf'))
-        fig_coalPlotter.savefig(os.path.join(pathto_figures, 'coal scatter kmeans.pdf'))
+        fig_region_distributution_plotter.savefig(os.path.join(pathto_figures, 'uniform water coefficient distribution.pdf'))
+        fig_region_box_plotter.savefig(os.path.join(pathto_figures, 'region water boxplots.pdf'))
+        fig_coal_plotter.savefig(os.path.join(pathto_figures, 'coal scatter kmeans.pdf'))
         fig_hnwc_plotter.savefig(os.path.join(pathto_figures, 'historic nonuniform water coefficient histograms.pdf'))
-        df_gen_info_match_water.to_csv(pathto_gen_info_match_water, index=False)  # Save checkpoint
+        pandapower.to_pickle(net, pathto_case_match_water)  # Save checkpoint
         df_hnwc.to_csv(pathto_hnwc, index=False)  # Save checkpoint
 
+    # Prepare network for optimization
+    if not os.path.exists(pathto_case_match_water_optimize):
+        net = pandapower.from_pickle(pathto_case_match_water)  # Load previous checkpoint
+        net = src.optimization_information(net)
+        pandapower.to_pickle(net, pathto_case_match_water_optimize)
+
     # Uniform SA
-    if os.path.exists(pathto_uniform_sa):
-        df_uniform = pd.read_csv(pathto_uniform_sa)  # Load Checkpoint
-    else:
-        df_uniform = src.uniform_sa(df_gen_info_match_water, net, n_tasks, 10, uniform_factor_labs, obj_labs)
-        df_uniform.to_csv(pathto_uniform_sa, index=False)
+    if not os.path.exists(pathto_uniform_sa):
+        net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
+        df_uniform = src.uniform_sa(net, n_tasks, n_uniform_steps)
+        df_uniform.to_csv(pathto_uniform_sa, index=False)  # Save checkpoint
 
     # Uniform SA Data Viz
     if not os.path.exists(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawal.pdf')):
-        fig_a, fig_b = src.uniform_sa_dataviz(df_uniform, uniform_factor_labs, obj_labs, df_gen_info_match_water)
+        net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
+        df_uniform = pd.read_csv(pathto_uniform_sa)  # Load previous checkpoint
+        fig_a, fig_b = src.uniform_sa_dataviz(df_uniform, net)
         fig_a.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawal.pdf'))
         fig_b.fig.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Plant Output.pdf'))
 
     # Uniform SA Trees
     if not os.path.exists(os.path.join(pathto_figures, 'Total Cost (Dollar) Tree.pdf')):
-        drawing_ls = src.uniform_sa_tree(df_uniform, obj_labs, uniform_factor_labs)
+        net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
+        df_uniform = pd.read_csv(pathto_uniform_sa)  # Load previous checkpoint
+        drawing_ls = src.uniform_sa_tree(df_uniform, net)
         renderPDF.drawToFile(drawing_ls[0], os.path.join(pathto_figures, 'Total Cost (Dollar) Tree.pdf'))
         renderPDF.drawToFile(drawing_ls[1], os.path.join(pathto_figures, 'Generator Cost (Dollar) Tree.pdf'))
         renderPDF.drawToFile(drawing_ls[2], os.path.join(pathto_figures, 'Water Withdrawal (Gallon) Tree.pdf'))
         renderPDF.drawToFile(drawing_ls[3], os.path.join(pathto_figures, 'Water Consumption (Gallon) Tree.pdf'))
 
     # Nonuniform SA
-    if os.path.exists(pathto_nonuniform_sa_sobol):
-        df_nonuniform = pd.read_csv(pathto_nonuniform_sa)
-        df_nonuniform_sobol = pd.read_csv(pathto_nonuniform_sa_sobol)
-    else:
+    if not os.path.exists(pathto_nonuniform_sa_sobol):
+        net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
+        df_hnwc = pd.read_csv(pathto_hnwc)  # Load previous checkpoint
         df_operation = pd.read_csv(pathto_operational_scenarios)
-        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(df_gen_info_match_water, df_hnwc, df_operation, obj_labs, n_tasks, net)
-        df_nonuniform.to_csv(pathto_nonuniform_sa, index=False)
-        df_nonuniform_sobol.to_csv(pathto_nonuniform_sa_sobol, index=False)
+        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(
+            df_hnwc, df_operation, n_tasks, n_nonuniform_samples, net
+        )
+        df_nonuniform.to_csv(pathto_nonuniform_sa, index=False)  # Save checkpoint
+        df_nonuniform_sobol.to_csv(pathto_nonuniform_sa_sobol, index=False)  # Save checkpoint
 
     # Sobol Visualization
     if not os.path.exists(os.path.join(pathto_figures, 'First Order Heatmap.pdf')):
-        nonuniform_sobol_fig = src.nonuniform_sobol_viz(df_nonuniform_sobol, df_gen_info_match_water)
+        net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
+        df_nonuniform_sobol = pd.read_csv(pathto_nonuniform_sa_sobol)
+        nonuniform_sobol_fig = src.nonuniform_sobol_viz(df_nonuniform_sobol, net)
         nonuniform_sobol_fig.fig.savefig(os.path.join(pathto_figures, 'First Order Heatmap.pdf'))
 
     # Historic Load Generation
@@ -135,7 +144,8 @@ def main():
 
     # System Information Table
     if not os.path.exists(os.path.join(pathto_tables, 'system_information.csv')):
-        df_system = src.get_system_information(df_gen_info_match_water)
+        net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
+        df_system = src.get_system_information(net)
         df_system.to_csv(os.path.join(pathto_tables, 'system_information.csv'), index=False)
 
     return 0
