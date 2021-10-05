@@ -616,7 +616,7 @@ def uniform_sa(net, n_tasks, n_steps):
     return df_uniform
 
 
-def viz_effect_of_withdrawal_weight(df, uniform_factor_labs, obj_labs):
+def viz_effect_of_withdrawal_weight_on_withdrawal(df, uniform_factor_labs, obj_labs):
 
     # Subsetting data
     plot_df = df[uniform_factor_labs + obj_labs]
@@ -704,18 +704,60 @@ def viz_effect_of_withdrawal_weight_plant_output(df):
     plt.tight_layout()
     plt.show()
 
-    return g, df
+    return g
+
+
+def viz_effect_of_withdrawal_weight_line_flows(df, net):
+    # Subsetting data
+    df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
+    withdrawal_criteria = [0.0, 0.1, 0.1]
+    uniform_water_criteria = [0.5, 0.5, 1.5]
+    case_a = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[0]) & (
+                df['Uniform Water Coefficient'] == uniform_water_criteria[0])
+    case_b = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[1]) & (
+                df['Uniform Water Coefficient'] == uniform_water_criteria[1])
+    case_c = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[2]) & (
+                df['Uniform Water Coefficient'] == uniform_water_criteria[2])
+    df = df[case_a | case_b | case_c]
+
+    # Making labels
+    df['ID'] = '$w_{with}=$' + df['Withdrawal Weight ($/Gallon)'].astype(str) + ', $c_{water}=$' + df[
+        'Uniform Water Coefficient'].astype(str)
+
+    # Formatting
+    line_labs = df.filter(like='Loading (Percent)').columns
+    df_plot = pd.melt(
+        df,
+        id_vars=net.uniform_input_factor_labs+['ID'],
+        value_vars=line_labs,
+        value_name='Loading (Percent)',
+        var_name='Line'
+    )
+
+    # Plotting
+    g = sns.FacetGrid(df_plot, row='ID', aspect=10, margin_titles=True)
+    g.map_dataframe(sns.scatterplot, y='Loading (Percent)', x='Line', hue='Uniform Loading Coefficient',
+                    size='Uniform Loading Coefficient')
+    g.add_legend()
+    g.set_xticklabels(rotation=90)
+    plt.tight_layout()
+    plt.show()
+
+    return 0
 
 
 def uniform_sa_dataviz(df, net):
     # Convert to generator information dataframe
     df_gen_info = network_to_gen_info(net)
 
-    # Visualization
-    fig_a = viz_effect_of_withdrawal_weight(df, net.uniform_input_factor_labs, net.objective_labs)
-    df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info, net.uniform_input_factor_labs, net.objective_labs)
-    fig_b, df = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
-    return fig_a, fig_b
+    # Generator Visualization
+    # fig_a = viz_effect_of_withdrawal_weight_on_withdrawal(df, net.uniform_input_factor_labs, net.objective_labs)
+    # df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info, net.uniform_input_factor_labs, net.objective_labs)
+    # fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
+
+    # Line Flow Visualization
+    fig_c = viz_effect_of_withdrawal_weight_line_flows(df, net)
+    return fig_a, fig_b, fig_c
 
 
 # def uniform_power_viz(df_uniform, df_gen_info, obj_labs, net):
