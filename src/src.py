@@ -805,6 +805,8 @@ def uniform_sa_tree(df, net):
 
 
 def generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc):
+    # Set seed
+    rng = np.random.default_rng(1008)
 
     # Add plant information
     df_hnwc = df_gen_info[['Plant Name', '923 Cooling Type', 'MATPOWER Fuel']].merge(df_hnwc)
@@ -813,7 +815,7 @@ def generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc):
     # Sampling
     replace = True  # with replacement
     n_inputs_factors = len(df_hnwc['Input Factor'].unique())
-    fn = lambda obj: obj.loc[np.random.choice(obj.index, n_sample, replace), :]
+    fn = lambda obj: obj.loc[rng.choice(obj.index, n_sample, replace), :]
     df_sample = df_hnwc.groupby('Input Factor', as_index=False).apply(fn)
     df_sample['Sample Index'] = np.tile(np.arange(0, n_sample), n_inputs_factors)
     df_sample = df_sample.reset_index().pivot(columns='Input Factor', values='value', index='Sample Index')
