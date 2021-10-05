@@ -414,8 +414,13 @@ def optimization_information(net):
     exogenous_labs = ['Withdrawal Weight ($/Gallon)',
                       'Consumption Weight ($/Gallon)'] + withdrawal_rate_labs + consumption_rate_labs + load_labs
 
+    # Line labels
+    line_labs = (
+            'Line ' + net.line['from_bus'].astype(str) + '-' + net.line['to_bus'].astype(str) + ' Loading (Percent)'
+    ).tolist()
+
     # Output labels
-    results_labs = objective_labs + power_labs
+    results_labs = objective_labs + power_labs + line_labs
 
     # Set attributes
     setattr(net, 'exogenous_labs', exogenous_labs)
@@ -546,6 +551,8 @@ def water_OPF_wrapper(ser_exogenous, t, net):
     df_internal = df_internal.merge(
         net.poly_cost, right_on=['element', 'et'], left_on=['PANDAPOWER Index', 'PANDAPOWER Type']
     )
+    generator_output = df_internal['p_mw'].to_list()
+    line_loadings = net.res_line['loading_percent'].to_list()
 
     # Compute objectives
     F_gen = (df_internal['Cost Term ($)'] +
@@ -558,7 +565,7 @@ def water_OPF_wrapper(ser_exogenous, t, net):
             ser_exogenous['Consumption Weight ($/Gallon)'] * F_con
 
     # Formatting Export
-    vals = [F_cos, F_gen, F_with, F_con] + df_internal['p_mw'].to_list()
+    vals = [F_cos, F_gen, F_with, F_con] + generator_output + line_loadings
     ser_results = pd.Series(vals, index=net.results_labs)
 
     return ser_results
@@ -604,7 +611,7 @@ def uniform_sa(net, n_tasks, n_steps):
     ).compute(scheduler='processes')
     df_uniform = pd.concat([df_search_exogenous, df_results], axis=1)
     df_uniform = df_uniform.drop_duplicates()  # Sometimes the parallel jobs replicate rows
-    print('Success: Grid Searched')
+    print('Success: Grid Sampled')
 
     return df_uniform
 
