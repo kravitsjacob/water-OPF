@@ -897,34 +897,6 @@ def MGSA_FirstOrder(Input, Output, ndomain):
     return index
 
 
-# def nonuniform_water_OPF_wrapper(ser_exogenous, t, net):
-#     # Initialize local vars
-#     net = copy.deepcopy(net)  # Copy network so not changed later
-#
-#     # Run OPF
-#     net = water_OPF(ser_exogenous.to_dict(), net, t)
-#
-#     # Extract internal decisions
-#     df_internal = get_internal(net)
-#     df_internal = df_internal.merge(
-#         net.poly_cost, right_on=['element', 'et'], left_on=['PANDAPOWER Index', 'PANDAPOWER Type']
-#     )
-#
-#     # Compute objectives
-#     F_gen = (df_internal['Cost Term ($)'] + df_internal['p_mw'] * df_internal['Cost Term ($/MW)'] + df_internal['p_mw'] ** 2 * df_internal['Cost Term ($/MW^2)']).sum(min_count=1)
-#     F_with = (df_internal['p_mw'] * df_internal['Withdrawal Power Rate (Gallon/MW)']).sum(min_count=1)
-#     F_con = (df_internal['p_mw'] * df_internal['Consumption Power Rate (Gallon/MW)']).sum(min_count=1)
-#     F_cos = F_gen +\
-#             ser_exogenous['Withdrawal Weight ($/Gallon)'] * F_with +\
-#             ser_exogenous['Consumption Weight ($/Gallon)'] * F_con
-#
-#     # Formatting Export
-#     vals = [F_cos, F_gen, F_with, F_con] + df_internal['p_mw'].to_list()
-#     ser_results = pd.Series(vals, index=net.results_labs)
-#
-#     return ser_results
-
-
 def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
     # Initialize local vars
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
