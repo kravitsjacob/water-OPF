@@ -491,10 +491,7 @@ def get_uniform_search(df_gridspecs):
 #     return df_geninfo
 
 
-def water_OPF(exogenous_dict, net, t):
-
-    # Convert dictionary to series
-    ser_exogenous = pd.Series(exogenous_dict)
+def water_OPF(ser_exogenous, net, t):
 
     # Create DataFrame of loads
     df_load = ser_exogenous[ser_exogenous.index.str.contains('Load')].to_frame('Load (MW)')
@@ -567,7 +564,7 @@ def water_OPF_wrapper(ser_exogenous, t, net):
     net = copy.deepcopy(net)  # Copy network so not changed later
 
     # Run OPF
-    net = water_OPF(ser_exogenous.to_dict(), net, t)
+    net = water_OPF(ser_exogenous, net, t)
 
     # Extract internal decisions
     df_internal = get_internal(net)
@@ -576,7 +573,9 @@ def water_OPF_wrapper(ser_exogenous, t, net):
     )
 
     # Compute objectives
-    F_gen = (df_internal['Cost Term ($)'] + df_internal['p_mw'] * df_internal['Cost Term ($/MW)'] + df_internal['p_mw'] ** 2 * df_internal['Cost Term ($/MW^2)']).sum(min_count=1)
+    F_gen = (df_internal['Cost Term ($)'] +
+             df_internal['p_mw'] * df_internal['Cost Term ($/MW)'] +
+             df_internal['p_mw'] ** 2 * df_internal['Cost Term ($/MW^2)']).sum(min_count=1)
     F_with = (df_internal['p_mw'] * df_internal['Withdrawal Power Rate (Gallon/MW)']).sum(min_count=1)
     F_con = (df_internal['p_mw'] * df_internal['Consumption Power Rate (Gallon/MW)']).sum(min_count=1)
     F_cos = F_gen +\
