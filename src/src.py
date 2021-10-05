@@ -710,21 +710,17 @@ def viz_effect_of_withdrawal_weight_plant_output(df):
 def viz_effect_of_withdrawal_weight_line_flows(df, net):
     # Subsetting data
     df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
-    withdrawal_criteria = [0.0, 0.1, 0.1]
-    uniform_water_criteria = [0.5, 0.5, 1.5]
-    case_a = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[0]) & (
-                df['Uniform Water Coefficient'] == uniform_water_criteria[0])
-    case_b = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[1]) & (
-                df['Uniform Water Coefficient'] == uniform_water_criteria[1])
-    case_c = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[2]) & (
-                df['Uniform Water Coefficient'] == uniform_water_criteria[2])
-    df = df[case_a | case_b | case_c]
+    df = df[df['Uniform Loading Coefficient'] == 1.0]
+    df = df[df['Uniform Water Coefficient'] == 0.5]
+    withdrawal_criteria = [0.0, 0.1]
+    case_a = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[0])
+    case_b = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[1])
+    df = df[case_a | case_b]
 
     # Making labels
-    df['ID'] = '$w_{with}=$' + df['Withdrawal Weight ($/Gallon)'].astype(str) + ', $c_{water}=$' + df[
-        'Uniform Water Coefficient'].astype(str)
+    df['ID'] = 'Withdrawal Weight ($/Gallon) = ' + df['Withdrawal Weight ($/Gallon)'].astype(str)
 
-    # Formatting
+    # Formatting data
     line_labs = df.filter(like='Loading (Percent)').columns
     df_plot = pd.melt(
         df,
@@ -733,13 +729,12 @@ def viz_effect_of_withdrawal_weight_line_flows(df, net):
         value_name='Loading (Percent)',
         var_name='Line'
     )
+    df_plot['Line'] = df_plot['Line'].str.split(' Loading', expand=True)[0]
 
     # Plotting
-    g = sns.FacetGrid(df_plot, row='ID', aspect=10, margin_titles=True)
-    g.map_dataframe(sns.scatterplot, y='Loading (Percent)', x='Line', hue='Uniform Loading Coefficient',
-                    size='Uniform Loading Coefficient')
-    g.add_legend()
-    g.set_xticklabels(rotation=90)
+    fig, ax = plt.subplots(figsize=(20, 10))
+    sns.scatterplot(data=df_plot, x='Line', y='Loading (Percent)', hue='ID', ax=ax)
+    plt.xticks(rotation=90)
     plt.tight_layout()
     plt.show()
 
