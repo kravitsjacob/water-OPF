@@ -627,7 +627,7 @@ def uniform_sa(net, n_tasks, n_steps):
         axis=1,
         meta=pd.DataFrame(columns=net.results_labs, dtype='float64')
     ).compute(scheduler='processes')
-    df_uniform = pd.concat([df_results, df_search_exogenous], axis=1)
+    df_uniform = pd.concat([df_search_exogenous, df_results], axis=1)
     df_uniform = df_uniform.drop_duplicates()  # Sometimes the parallel jobs replicate rows
     print('Success: Grid Searched')
 
@@ -978,7 +978,7 @@ def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
             axis=1,
             meta=pd.DataFrame(columns=net.results_labs, dtype='float64')
         ).compute(scheduler='processes')
-        df_nonuniform_scenario = pd.concat([df_results, df_exogenous], axis=1)
+        df_nonuniform_scenario = pd.concat([df_exogenous, df_results], axis=1)
         df_nonuniform_scenario = df_nonuniform_scenario.dropna()
         df_nonuniform_scenario = df_nonuniform_scenario.drop_duplicates()  # Sometimes dask duplicates rows
         print('Success: ' + row['Operational Scenario'] + ' Model Run Complete')
