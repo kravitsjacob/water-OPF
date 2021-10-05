@@ -466,31 +466,6 @@ def get_uniform_search(df_gridspecs):
     return df_search
 
 
-# def matchIndex(df_geninfo, net):
-#     # Initialize
-#     df_gen = pd.DataFrame()
-#     df_sgen = pd.DataFrame()
-#     df_ext_grid = pd.DataFrame()
-#     # Generators
-#     df_gen['MATPOWER Index'] = net.gen['bus'] + 1
-#     df_gen['PANDAPOWER Index'] = net.gen['bus'].index.to_list()
-#     df_gen['PANDAPOWER Bus Type'] = 'gen'
-#     # Static Generators
-#     df_sgen['MATPOWER Index'] = net.sgen['bus'] + 1
-#     df_sgen['PANDAPOWER Index'] = net.sgen['bus'].index.to_list()
-#     df_sgen['PANDAPOWER Bus Type'] = 'sgen'
-#     # External Grid
-#     df_ext_grid['MATPOWER Index'] = net.ext_grid['bus'] + 1
-#     df_ext_grid['PANDAPOWER Index'] = net.ext_grid['bus'].index.to_list()
-#     df_ext_grid['PANDAPOWER Bus Type'] = 'ext_grid'
-#     # Combine
-#     df_match = pd.concat([df_gen, df_sgen, df_ext_grid])
-#     df_match.reset_index()
-#     # Join
-#     df_geninfo = df_geninfo.merge(df_match, on='MATPOWER Index')
-#     return df_geninfo
-
-
 def water_OPF(ser_exogenous, net, t):
 
     # Create DataFrame of loads
