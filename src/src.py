@@ -9,9 +9,10 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 import dask.dataframe as dd
 import pandapower as pp
-from dtreeviz.trees import *  # Requires pip version
 from svglib.svglib import svg2rlg
-#from pandapower.plotting.plotly import pf_res_plotly
+import matplotlib as mpl
+import pandapower.plotting as ppp
+from dtreeviz.trees import *  # Requires pip version
 
 
 def network_to_gen_info(net):
@@ -792,6 +793,73 @@ def viz_effect_of_withdrawal_weight_line_flows(net):
     return fig
 
 
+def effect_of_withdrawal_weight_line_flows(net):
+    # Preparing information (could go in optimization_information later)
+    net = copy.deepcopy(net)
+    net.line['name'] = net.line['from_bus'].astype(str) + ' - ' + net.line['to_bus'].astype(str)
+    net.trafo['name'] = net.trafo['hv_bus'].astype(str) + ' - ' + net.trafo['lv_bus'].astype(str)
+
+    # Get uniform df for subsets (See uniform_sa for references)
+    t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
+    df_search = pd.DataFrame({'Uniform Water Coefficient': [0.5, 0.5],
+                              'Uniform Loading Coefficient': [1.5, 1.5],
+                              'Withdrawal Weight ($/Gallon)': [0.0, 0.1],
+                              'Consumption Weight ($/Gallon)': [0.0, 0.0]})
+    df_gen_info = network_to_gen_info(net)
+    beta_with_median = df_gen_info['Median Withdrawal Rate (Gallon/kWh)'].values
+    beta_con_median = df_gen_info['Median Consumption Rate (Gallon/kWh)'].values
+    beta_load_median = net.load['p_mw'].values
+    df_exogenous = df_search.apply(lambda row: uniform_input_factor_multiply(
+        row['Uniform Water Coefficient'],
+        row['Uniform Loading Coefficient'],
+        beta_with_median,
+        beta_con_median,
+        beta_load_median,
+        net.exogenous_labs[2:]  # First two parameters in df_search
+    ), axis=1)
+    df_search_exogenous = pd.concat([df_search, df_exogenous], axis=1)
+    list_net = list(df_search_exogenous.apply(
+        lambda row: water_OPF_wrapper(row[net.exogenous_labs], t, net, output_type='net'),
+        axis=1
+    ))
+
+    # Label flows
+    net_diff = copy.deepcopy(list_net[0])
+    net_diff.res_line['Traditional OPF Loading (Percent)'] = list_net[0].res_line['loading_percent']
+    net_diff.res_line['Water OPF Loading (Percent)'] = list_net[1].res_line['loading_percent']
+    net_diff.res_trafo['Traditional OPF Loading (Percent)'] = list_net[0].res_trafo['loading_percent']
+    net_diff.res_trafo['Water OPF Loading (Percent)'] = list_net[1].res_trafo['loading_percent']
+
+    # Difference in flow
+    net_diff.res_line['Change in Loading (Percent)'] = net_diff.res_line['Water OPF Loading (Percent)'] - \
+                                                       net_diff.res_line['Traditional OPF Loading (Percent)']
+    net_diff.res_trafo['Change in Loading (Percent)'] = net_diff.res_trafo['Water OPF Loading (Percent)'] - \
+                                                        net_diff.res_trafo['Traditional OPF Loading (Percent)']
+    # Tabulate line flows
+    net_diff.res_line['name'] = net_diff.line['name']
+    net_diff.res_trafo['name'] = net_diff.trafo['name']
+    cols = ['name', 'Traditional OPF Loading (Percent)', 'Water OPF Loading (Percent)', 'Change in Loading (Percent)']
+    df_line_flows = pd.concat([net_diff.res_line[cols], net_diff.res_trafo[cols]])
+    df_line_flows = df_line_flows.sort_values('Change in Loading (Percent)')
+
+    # Visualize flow differences
+    net_diff.res_line['loading_percent'] = net_diff.res_line['Change in Loading (Percent)']
+    net_diff.res_trafo['loading_percent'] = net_diff.res_trafo['Change in Loading (Percent)']
+    ppp.create_generic_coordinates(net_diff, overwrite=True)
+    cmap = mpl.cm.RdBu
+    norm = mpl.colors.Normalize(vmin=-55.0, vmax=55.0)
+    pc = ppp.create_bus_collection(net_diff, size=0.1, alpha=0.2)
+    lc = ppp.create_line_collection(
+        net_diff, use_bus_geodata=True, cmap=cmap, norm=norm, cbar_title='Change in Line Loading (%)'
+    )
+    _, tlc = ppp.create_trafo_collection(net_diff, cmap=cmap, norm=norm, size=0.05)
+    tpc, _ = ppp.create_trafo_collection(net_diff, size=0.05, alpha=0.2)
+    ppp.draw_collections([tpc, tlc, pc, lc])
+    fig = plt.gcf()
+    plt.show()
+
+    return df_line_flows, fig
+
 
 def uniform_sa_dataviz(df, net):
     # Convert to generator information dataframe
@@ -803,9 +871,9 @@ def uniform_sa_dataviz(df, net):
     fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
 
     # Line Flow Visualization
-    df_line_flow = table_effect_of_withdrawal_weight_line_flows(df)
-    fig_c = viz_effect_of_withdrawal_weight_line_flows(net)
-    return fig_a, fig_b, df_line_flow, fig_c
+    df_line_flows, fig_c = effect_of_withdrawal_weight_line_flows(net)
+
+    return fig_a, fig_b, df_line_flows, fig_c
 
 
 # def uniform_power_viz(df_uniform, df_gen_info, obj_labs, net):
