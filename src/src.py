@@ -742,9 +742,9 @@ def table_effect_of_withdrawal_weight_line_flows(df):
 
 def viz_effect_of_withdrawal_weight_line_flows(net):
     import matplotlib as mpl
-    from pandapower.plotting import create_line_collection, create_bus_collection, draw_collections, create_trafo_collection, simple_plot
+    from pandapower.plotting import create_line_collection, create_bus_collection, create_generic_coordinates, draw_collections, create_trafo_collection, simple_plot
     # Generate synthetic coordinates
-    simple_plot(net, show_plot=False)
+    #simple_plot(net, show_plot=False)
 
     # Get uniform df for subsets (See uniform_sa for references)
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
@@ -773,15 +773,19 @@ def viz_effect_of_withdrawal_weight_line_flows(net):
     # Get differences in flows
     net_diff = copy.deepcopy(list_nets[0])
     net_diff.res_line['loading_percent'] = abs(list_nets[0].res_line['loading_percent'] - list_nets[1].res_line['loading_percent'])
+    net_diff.res_trafo['loading_percent'] = abs(
+        list_nets[0].res_trafo['loading_percent'] - list_nets[1].res_trafo['loading_percent'])
 
     # Get plots of lines flows in network
+    create_generic_coordinates(net_diff)
     cmap = mpl.cm.nipy_spectral
     norm = mpl.colors.Normalize(vmin=0.0, vmax=50.0)
     pc = create_bus_collection(net_diff, size=0.1)
     lc = create_line_collection(net_diff, use_bus_geodata=False, cmap=cmap, norm=norm,
                                 cbar_title='Absolute Change in Line Loading (%)')
-    tlc, tpc = create_trafo_collection(net_diff, size=0.05, alpha=0.1)
-    draw_collections([tlc, tpc, pc, lc])
+    _, tlc = create_trafo_collection(net_diff, cmap=cmap, norm=norm, size=0.05)
+    tpc, _ = create_trafo_collection(net_diff, size=0.05)
+    draw_collections([tpc, tlc, pc, lc])
     fig = plt.gcf()
     plt.show()
 
@@ -793,7 +797,7 @@ def uniform_sa_dataviz(df, net):
     # Convert to generator information dataframe
     df_gen_info = network_to_gen_info(net)
 
-    # # Generator Visualization
+    # Generator Visualization
     fig_a = viz_effect_of_withdrawal_weight_on_withdrawal(df, net.uniform_input_factor_labs, net.objective_labs)
     df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info, net.uniform_input_factor_labs, net.objective_labs)
     fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
