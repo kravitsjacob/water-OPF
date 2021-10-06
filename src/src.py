@@ -707,10 +707,10 @@ def viz_effect_of_withdrawal_weight_plant_output(df):
     return g
 
 
-def viz_effect_of_withdrawal_weight_line_flows(df, net):
+def effect_of_withdrawal_weight_line_flows(df):
     # Subsetting data
     df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
-    df = df[df['Uniform Loading Coefficient'] == 1.0]
+    df = df[df['Uniform Loading Coefficient'] == 1.5]
     df = df[df['Uniform Water Coefficient'] == 0.5]
     withdrawal_criteria = [0.0, 0.1]
     case_a = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[0])
@@ -722,23 +722,18 @@ def viz_effect_of_withdrawal_weight_line_flows(df, net):
 
     # Formatting data
     line_labs = df.filter(like='Loading (Percent)').columns
-    df_plot = pd.melt(
-        df,
-        id_vars=net.uniform_input_factor_labs+['ID'],
-        value_vars=line_labs,
-        value_name='Loading (Percent)',
-        var_name='Line'
+    df = df.set_index('ID')
+    df = df[line_labs].transpose()
+    df = df.reset_index().rename(columns={'index': 'ID'})
+    df['Line'] = df['ID'].str.split(' Loading', expand=True)[0]
+
+    # Getting absolute difference
+    df['Absolute Difference (Percent)'] = abs(
+        df['Withdrawal Weight ($/Gallon) = 0.0'] - df['Withdrawal Weight ($/Gallon) = 0.1']
     )
-    df_plot['Line'] = df_plot['Line'].str.split(' Loading', expand=True)[0]
+    df = df.sort_values('Absolute Difference (Percent)', ascending=False)
 
-    # Plotting
-    fig, ax = plt.subplots(figsize=(20, 10))
-    sns.scatterplot(data=df_plot, x='Line', y='Loading (Percent)', hue='ID', ax=ax)
-    plt.xticks(rotation=90)
-    plt.tight_layout()
-    plt.show()
-
-    return 0
+    return df
 
 
 def uniform_sa_dataviz(df, net):
@@ -746,13 +741,13 @@ def uniform_sa_dataviz(df, net):
     df_gen_info = network_to_gen_info(net)
 
     # Generator Visualization
-    # fig_a = viz_effect_of_withdrawal_weight_on_withdrawal(df, net.uniform_input_factor_labs, net.objective_labs)
-    # df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info, net.uniform_input_factor_labs, net.objective_labs)
-    # fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
+    fig_a = viz_effect_of_withdrawal_weight_on_withdrawal(df, net.uniform_input_factor_labs, net.objective_labs)
+    df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info, net.uniform_input_factor_labs, net.objective_labs)
+    fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
 
     # Line Flow Visualization
-    fig_c = viz_effect_of_withdrawal_weight_line_flows(df, net)
-    return fig_a, fig_b, fig_c
+    df = effect_of_withdrawal_weight_line_flows(df)
+    return fig_a, fig_b, df
 
 
 # def uniform_power_viz(df_uniform, df_gen_info, obj_labs, net):
