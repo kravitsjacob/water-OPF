@@ -740,18 +740,68 @@ def table_effect_of_withdrawal_weight_line_flows(df):
     return df
 
 
+def viz_effect_of_withdrawal_weight_line_flows(net):
+    import matplotlib as mpl
+    from pandapower.plotting import create_line_collection, create_bus_collection, draw_collections, create_trafo_collection, simple_plot
+    # Generate synthetic coordinates
+    simple_plot(net, show_plot=False)
+
+    # Get uniform df for subsets (See uniform_sa for references)
+    t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
+    df_search = pd.DataFrame({'Uniform Water Coefficient': [0.5, 0.5],
+                              'Uniform Loading Coefficient': [1.5, 1.5],
+                              'Withdrawal Weight ($/Gallon)': [0.0, 0.1],
+                              'Consumption Weight ($/Gallon)': [0.0, 0.0]})
+    df_gen_info = network_to_gen_info(net)
+    beta_with_median = df_gen_info['Median Withdrawal Rate (Gallon/kWh)'].values
+    beta_con_median = df_gen_info['Median Consumption Rate (Gallon/kWh)'].values
+    beta_load_median = net.load['p_mw'].values
+    df_exogenous = df_search.apply(lambda row: uniform_input_factor_multiply(
+        row['Uniform Water Coefficient'],
+        row['Uniform Loading Coefficient'],
+        beta_with_median,
+        beta_con_median,
+        beta_load_median,
+        net.exogenous_labs[2:]  # First two parameters in df_search
+    ), axis=1)
+    df_search_exogenous = pd.concat([df_search, df_exogenous], axis=1)
+    list_nets = list(df_search_exogenous.apply(
+        lambda row: water_OPF_wrapper(row[net.exogenous_labs], t, net, output_type='net'),
+        axis=1
+    ))
+
+    # Get differences in flows
+    net_diff = copy.deepcopy(list_nets[0])
+    net_diff.res_line['loading_percent'] = abs(list_nets[0].res_line['loading_percent'] - list_nets[1].res_line['loading_percent'])
+
+    # Get plots of lines flows in network
+    cmap = mpl.cm.nipy_spectral
+    norm = mpl.colors.Normalize(vmin=0.0, vmax=50.0)
+    pc = create_bus_collection(net_diff, size=0.1)
+    lc = create_line_collection(net_diff, use_bus_geodata=False, cmap=cmap, norm=norm,
+                                cbar_title='Absolute Change in Line Loading (%)')
+    tlc, tpc = create_trafo_collection(net_diff, size=0.05, alpha=0.1)
+    draw_collections([tlc, tpc, pc, lc])
+    fig = plt.gcf()
+    plt.show()
+
+    return fig
+
+
+
 def uniform_sa_dataviz(df, net):
     # Convert to generator information dataframe
     df_gen_info = network_to_gen_info(net)
 
     # # Generator Visualization
-    # fig_a = viz_effect_of_withdrawal_weight_on_withdrawal(df, net.uniform_input_factor_labs, net.objective_labs)
-    # df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info, net.uniform_input_factor_labs, net.objective_labs)
-    # fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
+    fig_a = viz_effect_of_withdrawal_weight_on_withdrawal(df, net.uniform_input_factor_labs, net.objective_labs)
+    df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info, net.uniform_input_factor_labs, net.objective_labs)
+    fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
 
     # Line Flow Visualization
-    df = effect_of_withdrawal_weight_line_flows(net)
-    return fig_a, fig_b, df
+    df_line_flow = table_effect_of_withdrawal_weight_line_flows(df)
+    fig_c = viz_effect_of_withdrawal_weight_line_flows(net)
+    return fig_a, fig_b, df_line_flow, fig_c
 
 
 # def uniform_power_viz(df_uniform, df_gen_info, obj_labs, net):

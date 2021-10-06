@@ -104,10 +104,11 @@ def main():
     if not os.path.exists(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawal.pdf')):
         net = pandapower.from_pickle(pathto_case_match_water_optimize)  # Load previous checkpoint
         df_uniform = pd.read_csv(pathto_uniform_sa)  # Load previous checkpoint
-        fig_a, fig_b, df_flows = src.uniform_sa_dataviz(df_uniform, net)
+        fig_a, fig_b, df_line_flow, fig_c = src.uniform_sa_dataviz(df_uniform, net)
         fig_a.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Withdrawal.pdf'))
         fig_b.fig.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Plant Output.pdf'))
-        df_flows.to_csv(os.path.join(pathto_tables, 'line_flows.csv'), index=False)
+        df_line_flow.to_csv(os.path.join(pathto_tables, 'line_flows.csv'), index=False)
+        fig_c.savefig(os.path.join(pathto_figures, 'Effect of Withdrawal Weight on Line Flows.pdf'))
 
     # Uniform SA Trees
     if not os.path.exists(os.path.join(pathto_figures, 'Total Cost (Dollar) Tree.pdf')):
