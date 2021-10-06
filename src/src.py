@@ -539,36 +539,40 @@ def get_internal(net):
     return df_internal
 
 
-def water_OPF_wrapper(ser_exogenous, t, net):
+def water_OPF_wrapper(ser_exogenous, t, net, output_type='numeric'):
     # Initialize local vars
     net = copy.deepcopy(net)  # Copy network so not changed later
 
     # Run OPF
     net = water_OPF(ser_exogenous, net, t)
 
-    # Extract internal decisions
-    df_internal = get_internal(net)
-    df_internal = df_internal.merge(
-        net.poly_cost, right_on=['element', 'et'], left_on=['PANDAPOWER Index', 'PANDAPOWER Type']
-    )
-    generator_output = df_internal['p_mw'].to_list()
-    line_loadings = net.res_line['loading_percent'].to_list()
+    if output_type == 'net':
+        return net
 
-    # Compute objectives
-    F_gen = (df_internal['Cost Term ($)'] +
-             df_internal['p_mw'] * df_internal['Cost Term ($/MW)'] +
-             df_internal['p_mw'] ** 2 * df_internal['Cost Term ($/MW^2)']).sum(min_count=1)
-    F_with = (df_internal['p_mw'] * df_internal['Withdrawal Power Rate (Gallon/MW)']).sum(min_count=1)
-    F_con = (df_internal['p_mw'] * df_internal['Consumption Power Rate (Gallon/MW)']).sum(min_count=1)
-    F_cos = F_gen +\
-            ser_exogenous['Withdrawal Weight ($/Gallon)'] * F_with +\
-            ser_exogenous['Consumption Weight ($/Gallon)'] * F_con
+    elif output_type == 'numeric':
+        # Extract internal decisions
+        df_internal = get_internal(net)
+        df_internal = df_internal.merge(
+            net.poly_cost, right_on=['element', 'et'], left_on=['PANDAPOWER Index', 'PANDAPOWER Type']
+        )
+        generator_output = df_internal['p_mw'].to_list()
+        line_loadings = net.res_line['loading_percent'].to_list()
 
-    # Formatting Export
-    vals = [F_cos, F_gen, F_with, F_con] + generator_output + line_loadings
-    ser_results = pd.Series(vals, index=net.results_labs)
+        # Compute objectives
+        F_gen = (df_internal['Cost Term ($)'] +
+                 df_internal['p_mw'] * df_internal['Cost Term ($/MW)'] +
+                 df_internal['p_mw'] ** 2 * df_internal['Cost Term ($/MW^2)']).sum(min_count=1)
+        F_with = (df_internal['p_mw'] * df_internal['Withdrawal Power Rate (Gallon/MW)']).sum(min_count=1)
+        F_con = (df_internal['p_mw'] * df_internal['Consumption Power Rate (Gallon/MW)']).sum(min_count=1)
+        F_cos = F_gen +\
+                ser_exogenous['Withdrawal Weight ($/Gallon)'] * F_with +\
+                ser_exogenous['Consumption Weight ($/Gallon)'] * F_con
 
-    return ser_results
+        # Formatting Export
+        vals = [F_cos, F_gen, F_with, F_con] + generator_output + line_loadings
+        ser_results = pd.Series(vals, index=net.results_labs)
+
+        return ser_results
 
 
 def uniform_sa(net, n_tasks, n_steps):
@@ -707,7 +711,7 @@ def viz_effect_of_withdrawal_weight_plant_output(df):
     return g
 
 
-def effect_of_withdrawal_weight_line_flows(df):
+def table_effect_of_withdrawal_weight_line_flows(df):
     # Subsetting data
     df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
     df = df[df['Uniform Loading Coefficient'] == 1.5]
@@ -740,13 +744,13 @@ def uniform_sa_dataviz(df, net):
     # Convert to generator information dataframe
     df_gen_info = network_to_gen_info(net)
 
-    # Generator Visualization
-    fig_a = viz_effect_of_withdrawal_weight_on_withdrawal(df, net.uniform_input_factor_labs, net.objective_labs)
-    df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info, net.uniform_input_factor_labs, net.objective_labs)
-    fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
+    # # Generator Visualization
+    # fig_a = viz_effect_of_withdrawal_weight_on_withdrawal(df, net.uniform_input_factor_labs, net.objective_labs)
+    # df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info, net.uniform_input_factor_labs, net.objective_labs)
+    # fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
 
     # Line Flow Visualization
-    df = effect_of_withdrawal_weight_line_flows(df)
+    df = effect_of_withdrawal_weight_line_flows(net)
     return fig_a, fig_b, df
 
 
