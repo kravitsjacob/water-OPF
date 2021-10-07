@@ -846,7 +846,7 @@ def effect_of_withdrawal_weight_line_flows(net):
     net_diff.res_line['loading_percent'] = net_diff.res_line['Change in Loading (Percent)']
     net_diff.res_trafo['loading_percent'] = net_diff.res_trafo['Change in Loading (Percent)']
     ppp.create_generic_coordinates(net_diff, overwrite=True)
-    cmap = mpl.cm.RdBu
+    cmap = mpl.cm.RdBu_r
     norm = mpl.colors.Normalize(vmin=-55.0, vmax=55.0)
     pc = ppp.create_bus_collection(net_diff, size=0.1, alpha=0.2)
     lc = ppp.create_line_collection(
