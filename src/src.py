@@ -9,9 +9,10 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 import dask.dataframe as dd
 import pandapower as pp
-from dtreeviz.trees import *  # Requires pip version
 from svglib.svglib import svg2rlg
-#from pandapower.plotting.plotly import pf_res_plotly
+import matplotlib as mpl
+import pandapower.plotting as ppp
+from dtreeviz.trees import *  # Requires pip version
 
 
 def network_to_gen_info(net):
@@ -414,8 +415,13 @@ def optimization_information(net):
     exogenous_labs = ['Withdrawal Weight ($/Gallon)',
                       'Consumption Weight ($/Gallon)'] + withdrawal_rate_labs + consumption_rate_labs + load_labs
 
+    # Line labels
+    line_labs = (
+            'Line ' + net.line['from_bus'].astype(str) + '-' + net.line['to_bus'].astype(str) + ' Loading (Percent)'
+    ).tolist()
+
     # Output labels
-    results_labs = objective_labs + power_labs
+    results_labs = objective_labs + power_labs + line_labs
 
     # Set attributes
     setattr(net, 'exogenous_labs', exogenous_labs)
@@ -466,35 +472,7 @@ def get_uniform_search(df_gridspecs):
     return df_search
 
 
-# def matchIndex(df_geninfo, net):
-#     # Initialize
-#     df_gen = pd.DataFrame()
-#     df_sgen = pd.DataFrame()
-#     df_ext_grid = pd.DataFrame()
-#     # Generators
-#     df_gen['MATPOWER Index'] = net.gen['bus'] + 1
-#     df_gen['PANDAPOWER Index'] = net.gen['bus'].index.to_list()
-#     df_gen['PANDAPOWER Bus Type'] = 'gen'
-#     # Static Generators
-#     df_sgen['MATPOWER Index'] = net.sgen['bus'] + 1
-#     df_sgen['PANDAPOWER Index'] = net.sgen['bus'].index.to_list()
-#     df_sgen['PANDAPOWER Bus Type'] = 'sgen'
-#     # External Grid
-#     df_ext_grid['MATPOWER Index'] = net.ext_grid['bus'] + 1
-#     df_ext_grid['PANDAPOWER Index'] = net.ext_grid['bus'].index.to_list()
-#     df_ext_grid['PANDAPOWER Bus Type'] = 'ext_grid'
-#     # Combine
-#     df_match = pd.concat([df_gen, df_sgen, df_ext_grid])
-#     df_match.reset_index()
-#     # Join
-#     df_geninfo = df_geninfo.merge(df_match, on='MATPOWER Index')
-#     return df_geninfo
-
-
-def water_OPF(exogenous_dict, net, t):
-
-    # Convert dictionary to series
-    ser_exogenous = pd.Series(exogenous_dict)
+def water_OPF(ser_exogenous, net, t):
 
     # Create DataFrame of loads
     df_load = ser_exogenous[ser_exogenous.index.str.contains('Load')].to_frame('Load (MW)')
@@ -562,32 +540,40 @@ def get_internal(net):
     return df_internal
 
 
-def water_OPF_wrapper(ser_exogenous, t, net):
+def water_OPF_wrapper(ser_exogenous, t, net, output_type='numeric'):
     # Initialize local vars
     net = copy.deepcopy(net)  # Copy network so not changed later
 
     # Run OPF
-    net = water_OPF(ser_exogenous.to_dict(), net, t)
+    net = water_OPF(ser_exogenous, net, t)
 
-    # Extract internal decisions
-    df_internal = get_internal(net)
-    df_internal = df_internal.merge(
-        net.poly_cost, right_on=['element', 'et'], left_on=['PANDAPOWER Index', 'PANDAPOWER Type']
-    )
+    if output_type == 'net':
+        return net
 
-    # Compute objectives
-    F_gen = (df_internal['Cost Term ($)'] + df_internal['p_mw'] * df_internal['Cost Term ($/MW)'] + df_internal['p_mw'] ** 2 * df_internal['Cost Term ($/MW^2)']).sum(min_count=1)
-    F_with = (df_internal['p_mw'] * df_internal['Withdrawal Power Rate (Gallon/MW)']).sum(min_count=1)
-    F_con = (df_internal['p_mw'] * df_internal['Consumption Power Rate (Gallon/MW)']).sum(min_count=1)
-    F_cos = F_gen +\
-            ser_exogenous['Withdrawal Weight ($/Gallon)'] * F_with +\
-            ser_exogenous['Consumption Weight ($/Gallon)'] * F_con
+    elif output_type == 'numeric':
+        # Extract internal decisions
+        df_internal = get_internal(net)
+        df_internal = df_internal.merge(
+            net.poly_cost, right_on=['element', 'et'], left_on=['PANDAPOWER Index', 'PANDAPOWER Type']
+        )
+        generator_output = df_internal['p_mw'].to_list()
+        line_loadings = net.res_line['loading_percent'].to_list()
 
-    # Formatting Export
-    vals = [F_cos, F_gen, F_with, F_con] + df_internal['p_mw'].to_list()
-    ser_results = pd.Series(vals, index=net.results_labs)
+        # Compute objectives
+        F_gen = (df_internal['Cost Term ($)'] +
+                 df_internal['p_mw'] * df_internal['Cost Term ($/MW)'] +
+                 df_internal['p_mw'] ** 2 * df_internal['Cost Term ($/MW^2)']).sum(min_count=1)
+        F_with = (df_internal['p_mw'] * df_internal['Withdrawal Power Rate (Gallon/MW)']).sum(min_count=1)
+        F_con = (df_internal['p_mw'] * df_internal['Consumption Power Rate (Gallon/MW)']).sum(min_count=1)
+        F_cos = F_gen +\
+                ser_exogenous['Withdrawal Weight ($/Gallon)'] * F_with +\
+                ser_exogenous['Consumption Weight ($/Gallon)'] * F_con
 
-    return ser_results
+        # Formatting Export
+        vals = [F_cos, F_gen, F_with, F_con] + generator_output + line_loadings
+        ser_results = pd.Series(vals, index=net.results_labs)
+
+        return ser_results
 
 
 def uniform_sa(net, n_tasks, n_steps):
@@ -628,14 +614,14 @@ def uniform_sa(net, n_tasks, n_steps):
         axis=1,
         meta=pd.DataFrame(columns=net.results_labs, dtype='float64')
     ).compute(scheduler='processes')
-    df_uniform = pd.concat([df_results, df_search_exogenous], axis=1)
+    df_uniform = pd.concat([df_search_exogenous, df_results], axis=1)
     df_uniform = df_uniform.drop_duplicates()  # Sometimes the parallel jobs replicate rows
-    print('Success: Grid Searched')
+    print('Success: Grid Sampled')
 
     return df_uniform
 
 
-def viz_effect_of_withdrawal_weight(df, uniform_factor_labs, obj_labs):
+def viz_effect_of_withdrawal_weight_on_withdrawal(df, uniform_factor_labs, obj_labs):
 
     # Subsetting data
     plot_df = df[uniform_factor_labs + obj_labs]
@@ -723,74 +709,171 @@ def viz_effect_of_withdrawal_weight_plant_output(df):
     plt.tight_layout()
     plt.show()
 
-    return g, df
+    return g
+
+
+def table_effect_of_withdrawal_weight_line_flows(df):
+    # Subsetting data
+    df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
+    df = df[df['Uniform Loading Coefficient'] == 1.5]
+    df = df[df['Uniform Water Coefficient'] == 0.5]
+    withdrawal_criteria = [0.0, 0.1]
+    case_a = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[0])
+    case_b = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[1])
+    df = df[case_a | case_b]
+
+    # Making labels
+    df['ID'] = 'Withdrawal Weight ($/Gallon) = ' + df['Withdrawal Weight ($/Gallon)'].astype(str)
+
+    # Formatting data
+    line_labs = df.filter(like='Loading (Percent)').columns
+    df = df.set_index('ID')
+    df = df[line_labs].transpose()
+    df = df.reset_index().rename(columns={'index': 'ID'})
+    df['Line'] = df['ID'].str.split(' Loading', expand=True)[0]
+
+    # Getting absolute difference
+    df['Absolute Difference (Percent)'] = abs(
+        df['Withdrawal Weight ($/Gallon) = 0.0'] - df['Withdrawal Weight ($/Gallon) = 0.1']
+    )
+    df = df.sort_values('Absolute Difference (Percent)', ascending=False)
+
+    return df
+
+
+def viz_effect_of_withdrawal_weight_line_flows(net):
+    import matplotlib as mpl
+    from pandapower.plotting import create_line_collection, create_bus_collection, create_generic_coordinates, draw_collections, create_trafo_collection, simple_plot
+    # Generate synthetic coordinates
+    #simple_plot(net, show_plot=False)
+
+    # Get uniform df for subsets (See uniform_sa for references)
+    t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
+    df_search = pd.DataFrame({'Uniform Water Coefficient': [0.5, 0.5],
+                              'Uniform Loading Coefficient': [1.5, 1.5],
+                              'Withdrawal Weight ($/Gallon)': [0.0, 0.1],
+                              'Consumption Weight ($/Gallon)': [0.0, 0.0]})
+    df_gen_info = network_to_gen_info(net)
+    beta_with_median = df_gen_info['Median Withdrawal Rate (Gallon/kWh)'].values
+    beta_con_median = df_gen_info['Median Consumption Rate (Gallon/kWh)'].values
+    beta_load_median = net.load['p_mw'].values
+    df_exogenous = df_search.apply(lambda row: uniform_input_factor_multiply(
+        row['Uniform Water Coefficient'],
+        row['Uniform Loading Coefficient'],
+        beta_with_median,
+        beta_con_median,
+        beta_load_median,
+        net.exogenous_labs[2:]  # First two parameters in df_search
+    ), axis=1)
+    df_search_exogenous = pd.concat([df_search, df_exogenous], axis=1)
+    list_nets = list(df_search_exogenous.apply(
+        lambda row: water_OPF_wrapper(row[net.exogenous_labs], t, net, output_type='net'),
+        axis=1
+    ))
+
+    # Get differences in flows
+    net_diff = copy.deepcopy(list_nets[0])
+    net_diff.res_line['loading_percent'] = abs(list_nets[0].res_line['loading_percent'] - list_nets[1].res_line['loading_percent'])
+    net_diff.res_trafo['loading_percent'] = abs(
+        list_nets[0].res_trafo['loading_percent'] - list_nets[1].res_trafo['loading_percent'])
+
+    # Get plots of lines flows in network
+    create_generic_coordinates(net_diff)
+    cmap = mpl.cm.nipy_spectral
+    norm = mpl.colors.Normalize(vmin=0.0, vmax=50.0)
+    pc = create_bus_collection(net_diff, size=0.1)
+    lc = create_line_collection(net_diff, use_bus_geodata=False, cmap=cmap, norm=norm,
+                                cbar_title='Absolute Change in Line Loading (%)')
+    _, tlc = create_trafo_collection(net_diff, cmap=cmap, norm=norm, size=0.05)
+    tpc, _ = create_trafo_collection(net_diff, size=0.05)
+    draw_collections([tpc, tlc, pc, lc])
+    fig = plt.gcf()
+    plt.show()
+
+    return fig
+
+
+def effect_of_withdrawal_weight_line_flows(net):
+    # Preparing information (could go in optimization_information later)
+    net = copy.deepcopy(net)
+    net.line['name'] = net.line['from_bus'].astype(str) + ' - ' + net.line['to_bus'].astype(str)
+    net.trafo['name'] = net.trafo['hv_bus'].astype(str) + ' - ' + net.trafo['lv_bus'].astype(str)
+
+    # Get uniform df for subsets (See uniform_sa for references)
+    t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
+    df_search = pd.DataFrame({'Uniform Water Coefficient': [0.5, 0.5],
+                              'Uniform Loading Coefficient': [1.5, 1.5],
+                              'Withdrawal Weight ($/Gallon)': [0.0, 0.1],
+                              'Consumption Weight ($/Gallon)': [0.0, 0.0]})
+    df_gen_info = network_to_gen_info(net)
+    beta_with_median = df_gen_info['Median Withdrawal Rate (Gallon/kWh)'].values
+    beta_con_median = df_gen_info['Median Consumption Rate (Gallon/kWh)'].values
+    beta_load_median = net.load['p_mw'].values
+    df_exogenous = df_search.apply(lambda row: uniform_input_factor_multiply(
+        row['Uniform Water Coefficient'],
+        row['Uniform Loading Coefficient'],
+        beta_with_median,
+        beta_con_median,
+        beta_load_median,
+        net.exogenous_labs[2:]  # First two parameters in df_search
+    ), axis=1)
+    df_search_exogenous = pd.concat([df_search, df_exogenous], axis=1)
+    list_net = list(df_search_exogenous.apply(
+        lambda row: water_OPF_wrapper(row[net.exogenous_labs], t, net, output_type='net'),
+        axis=1
+    ))
+
+    # Label flows
+    net_diff = copy.deepcopy(list_net[0])
+    net_diff.res_line['Traditional OPF Loading (Percent)'] = list_net[0].res_line['loading_percent']
+    net_diff.res_line['Water OPF Loading (Percent)'] = list_net[1].res_line['loading_percent']
+    net_diff.res_trafo['Traditional OPF Loading (Percent)'] = list_net[0].res_trafo['loading_percent']
+    net_diff.res_trafo['Water OPF Loading (Percent)'] = list_net[1].res_trafo['loading_percent']
+
+    # Difference in flow
+    net_diff.res_line['Change in Loading (Percent)'] = net_diff.res_line['Water OPF Loading (Percent)'] - \
+                                                       net_diff.res_line['Traditional OPF Loading (Percent)']
+    net_diff.res_trafo['Change in Loading (Percent)'] = net_diff.res_trafo['Water OPF Loading (Percent)'] - \
+                                                        net_diff.res_trafo['Traditional OPF Loading (Percent)']
+    # Tabulate line flows
+    net_diff.res_line['name'] = net_diff.line['name']
+    net_diff.res_trafo['name'] = net_diff.trafo['name']
+    cols = ['name', 'Traditional OPF Loading (Percent)', 'Water OPF Loading (Percent)', 'Change in Loading (Percent)']
+    df_line_flows = pd.concat([net_diff.res_line[cols], net_diff.res_trafo[cols]])
+    df_line_flows = df_line_flows.sort_values('Change in Loading (Percent)')
+
+    # Visualize flow differences
+    net_diff.res_line['loading_percent'] = net_diff.res_line['Change in Loading (Percent)']
+    net_diff.res_trafo['loading_percent'] = net_diff.res_trafo['Change in Loading (Percent)']
+    ppp.create_generic_coordinates(net_diff, overwrite=True)
+    cmap = mpl.cm.RdBu_r
+    norm = mpl.colors.Normalize(vmin=-55.0, vmax=55.0)
+    pc = ppp.create_bus_collection(net_diff, size=0.1, alpha=0.2)
+    lc = ppp.create_line_collection(
+        net_diff, use_bus_geodata=True, cmap=cmap, norm=norm, cbar_title='Change in Line Loading (%)'
+    )
+    _, tlc = ppp.create_trafo_collection(net_diff, cmap=cmap, norm=norm, size=0.05)
+    tpc, _ = ppp.create_trafo_collection(net_diff, size=0.05, alpha=0.2)
+    ppp.draw_collections([tpc, tlc, pc, lc])
+    fig = plt.gcf()
+    plt.show()
+
+    return df_line_flows, fig
 
 
 def uniform_sa_dataviz(df, net):
     # Convert to generator information dataframe
     df_gen_info = network_to_gen_info(net)
 
-    # Visualization
-    fig_a = viz_effect_of_withdrawal_weight(df, net.uniform_input_factor_labs, net.objective_labs)
+    # Generator Visualization
+    fig_a = viz_effect_of_withdrawal_weight_on_withdrawal(df, net.uniform_input_factor_labs, net.objective_labs)
     df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info, net.uniform_input_factor_labs, net.objective_labs)
-    fig_b, df = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
-    return fig_a, fig_b
+    fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
 
+    # Line Flow Visualization
+    df_line_flows, fig_c = effect_of_withdrawal_weight_line_flows(net)
 
-# def uniform_power_viz(df_uniform, df_gen_info, obj_labs, net):
-#
-#     # Local vars
-#     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
-#     results_labs = obj_labs + ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(str) +
-#                                ' Ratio of Capacity').to_list()
-#     exogenous_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)'] + \
-#                      ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(
-#                          str) + ' Withdrawal Rate (Gallon/kWh)').tolist() + \
-#                      ('MATPOWER Generator ' + df_gen_info['MATPOWER Index'].astype(
-#                          str) + ' Consumption Rate (Gallon/kWh)').tolist() + \
-#                      ('PANDAPOWER Bus ' + net.load['bus'].astype(str) + ' Load (MW)').tolist()
-#
-#     # Get Pandapower indices
-#     df_gen_info = matchIndex(df_gen_info, net)
-#
-#     # net.line['max_loading_percent'][43] = 140
-#     # net.load['p_mw'][17] = 100
-#     # net.load['p_mw'][20] = 60
-#     # net.load['p_mw'][3] = 100
-#     # net.load['p_mw'][4:15] = 85
-#
-#     # Cases to visualize
-#     df_search = pd.DataFrame({'Uniform Water Coefficient': [1.0],
-#                               'Uniform Loading Coefficient': [1.0], # 1.6923
-#                               'Withdrawal Weight ($/Gallon)': [0.0],
-#                               'Consumption Weight ($/Gallon)': [0.0]})
-#
-#     # Multiply exogenous parameters
-#     beta_with = df_gen_info['Median Withdrawal Rate (Gallon/kWh)'].values
-#     beta_con = df_gen_info['Median Consumption Rate (Gallon/kWh)'].values
-#     beta_load = net.load['p_mw'].values
-#     df_exogenous = df_search.apply(
-#         lambda row: uniformFactorMultiply(
-#             row['Uniform Water Coefficient'],
-#             row['Uniform Loading Coefficient'],
-#             beta_with, beta_con, beta_load, exogenous_labs), axis=1)
-#
-#     # Combine
-#     df_search = pd.concat([df_search, df_exogenous], axis=1)
-#
-#     # Re-solve cases
-#     list_nets = list(df_search.apply(lambda row: waterOPF(row[exogenous_labs], t, results_labs, net, df_gen_info, return_state='net'), axis=1))
-#
-#     # Visualize
-#     for i, net in enumerate(list_nets):
-#         title = 'WW_' + str(df_search['Withdrawal Weight ($/Gallon)'][i]) +\
-#                 '_CW_' + str(df_search['Consumption Weight ($/Gallon)'][i]) +\
-#                 '_UWC_' + str(df_search['Uniform Water Coefficient'][i]) +\
-#                 '_ULC_' + str(df_search['Uniform Loading Coefficient'][i]) +\
-#                 '.html'
-#         pf_res_plotly(net, filename=title, aspectratio=(4, 2), figsize=1.5)
-#
-#     return 0
+    return fig_a, fig_b, df_line_flows, fig_c
 
 
 def fit_single_models(df, obj_labs, factor_labs):
@@ -824,6 +907,8 @@ def uniform_sa_tree(df, net):
 
 
 def generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc):
+    # Set seed
+    rng = np.random.default_rng(1008)
 
     # Add plant information
     df_hnwc = df_gen_info[['Plant Name', '923 Cooling Type', 'MATPOWER Fuel']].merge(df_hnwc)
@@ -832,7 +917,7 @@ def generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc):
     # Sampling
     replace = True  # with replacement
     n_inputs_factors = len(df_hnwc['Input Factor'].unique())
-    fn = lambda obj: obj.loc[np.random.choice(obj.index, n_sample, replace), :]
+    fn = lambda obj: obj.loc[rng.choice(obj.index, n_sample, replace), :]
     df_sample = df_hnwc.groupby('Input Factor', as_index=False).apply(fn)
     df_sample['Sample Index'] = np.tile(np.arange(0, n_sample), n_inputs_factors)
     df_sample = df_sample.reset_index().pivot(columns='Input Factor', values='value', index='Sample Index')
@@ -914,34 +999,6 @@ def MGSA_FirstOrder(Input, Output, ndomain):
     return index
 
 
-# def nonuniform_water_OPF_wrapper(ser_exogenous, t, net):
-#     # Initialize local vars
-#     net = copy.deepcopy(net)  # Copy network so not changed later
-#
-#     # Run OPF
-#     net = water_OPF(ser_exogenous.to_dict(), net, t)
-#
-#     # Extract internal decisions
-#     df_internal = get_internal(net)
-#     df_internal = df_internal.merge(
-#         net.poly_cost, right_on=['element', 'et'], left_on=['PANDAPOWER Index', 'PANDAPOWER Type']
-#     )
-#
-#     # Compute objectives
-#     F_gen = (df_internal['Cost Term ($)'] + df_internal['p_mw'] * df_internal['Cost Term ($/MW)'] + df_internal['p_mw'] ** 2 * df_internal['Cost Term ($/MW^2)']).sum(min_count=1)
-#     F_with = (df_internal['p_mw'] * df_internal['Withdrawal Power Rate (Gallon/MW)']).sum(min_count=1)
-#     F_con = (df_internal['p_mw'] * df_internal['Consumption Power Rate (Gallon/MW)']).sum(min_count=1)
-#     F_cos = F_gen +\
-#             ser_exogenous['Withdrawal Weight ($/Gallon)'] * F_with +\
-#             ser_exogenous['Consumption Weight ($/Gallon)'] * F_con
-#
-#     # Formatting Export
-#     vals = [F_cos, F_gen, F_with, F_con] + df_internal['p_mw'].to_list()
-#     ser_results = pd.Series(vals, index=net.results_labs)
-#
-#     return ser_results
-
-
 def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
     # Initialize local vars
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
@@ -979,7 +1036,7 @@ def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
             axis=1,
             meta=pd.DataFrame(columns=net.results_labs, dtype='float64')
         ).compute(scheduler='processes')
-        df_nonuniform_scenario = pd.concat([df_results, df_exogenous], axis=1)
+        df_nonuniform_scenario = pd.concat([df_exogenous, df_results], axis=1)
         df_nonuniform_scenario = df_nonuniform_scenario.dropna()
         df_nonuniform_scenario = df_nonuniform_scenario.drop_duplicates()  # Sometimes dask duplicates rows
         print('Success: ' + row['Operational Scenario'] + ' Model Run Complete')
@@ -998,7 +1055,7 @@ def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
         df_nonuniform_scenario['Operational Scenario'] = row['Operational Scenario']
         df_sobol_scenario['Operational Scenario'] = row['Operational Scenario']
         sobol_ls.append(df_sobol_scenario.rename_axis('Objective').reset_index())
-        results_ls.append(df_sobol_scenario)
+        results_ls.append(df_nonuniform_scenario)
 
     # Creating main dataframes
     df_nonuniform = pd.concat(results_ls, ignore_index=True)
