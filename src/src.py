@@ -209,7 +209,6 @@ def get_cluster(df_geninfo, kmeans, fuel_type, cool_type):
 
 
 def get_cluster_data(df_geninfo, df_region, fuel_type, cool_type, cluster):
-
     # Get regional cluster data
     idxs_region = df_region.index[(df_region['Fuel Type'] == fuel_type) & (df_region['923 Cooling Type'] == cool_type) & (df_region['Cluster'] == cluster)]
     arr_with = df_region.loc[idxs_region, 'Withdrawal Rate (Gallon/kWh)'].values
@@ -375,7 +374,6 @@ def cooling_system_information(net, df_EIA):
 
 
 def optimization_information(net):
-
     # Initialize local vars
     gen_types = ['gen', 'sgen', 'ext_grid']
     objective_labs = ['Total Cost ($)',
@@ -394,7 +392,6 @@ def optimization_information(net):
     power_labs = []
 
     for gen_type in gen_types:
-
         # Storing Pandapower information
         getattr(net, gen_type)['PANDAPOWER Index'] = getattr(net, gen_type).index.tolist()
         getattr(net, gen_type)['PANDAPOWER Type'] = gen_type
@@ -449,7 +446,6 @@ def uniform_input_factor_multiply(c_water, c_load, beta_with, beta_con, beta_loa
 
 
 def get_uniform_search(df_gridspecs):
-
     # Set Search Values
     w_with_vals = np.linspace(df_gridspecs['Min']['Withdrawal Weight ($/Gallon)'],
                               df_gridspecs['Max']['Withdrawal Weight ($/Gallon)'],
@@ -473,7 +469,6 @@ def get_uniform_search(df_gridspecs):
 
 
 def water_OPF(ser_exogenous, net, t):
-
     # Create DataFrame of loads
     df_load = ser_exogenous[ser_exogenous.index.str.contains('Load')].to_frame('Load (MW)')
     df_load['bus'] = df_load.index.str.extract('(\d+)').astype(int).values
@@ -622,7 +617,6 @@ def uniform_sa(net, n_tasks, n_steps):
 
 
 def viz_effect_of_withdrawal_weight_on_withdrawal(df, uniform_factor_labs, obj_labs):
-
     # Subsetting data
     plot_df = df[uniform_factor_labs + obj_labs]
     plot_df = plot_df[plot_df['Consumption Weight ($/Gallon)'] == 0.0]
@@ -672,7 +666,6 @@ def get_plant_output_ratio(df, df_gen_info, uniform_factor_labs, obj_labs):
 
 
 def viz_effect_of_withdrawal_weight_plant_output(df):
-
     # Subsetting data
     df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
     withdrawal_criteria = [0.0, 0.1, 0.1]
@@ -742,11 +735,6 @@ def table_effect_of_withdrawal_weight_line_flows(df):
 
 
 def viz_effect_of_withdrawal_weight_line_flows(net):
-    import matplotlib as mpl
-    from pandapower.plotting import create_line_collection, create_bus_collection, create_generic_coordinates, draw_collections, create_trafo_collection, simple_plot
-    # Generate synthetic coordinates
-    #simple_plot(net, show_plot=False)
-
     # Get uniform df for subsets (See uniform_sa for references)
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
     df_search = pd.DataFrame({'Uniform Water Coefficient': [0.5, 0.5],
@@ -778,15 +766,16 @@ def viz_effect_of_withdrawal_weight_line_flows(net):
         list_nets[0].res_trafo['loading_percent'] - list_nets[1].res_trafo['loading_percent'])
 
     # Get plots of lines flows in network
-    create_generic_coordinates(net_diff)
+    ppp.create_generic_coordinates(net_diff)
     cmap = mpl.cm.nipy_spectral
     norm = mpl.colors.Normalize(vmin=0.0, vmax=50.0)
-    pc = create_bus_collection(net_diff, size=0.1)
-    lc = create_line_collection(net_diff, use_bus_geodata=False, cmap=cmap, norm=norm,
-                                cbar_title='Absolute Change in Line Loading (%)')
-    _, tlc = create_trafo_collection(net_diff, cmap=cmap, norm=norm, size=0.05)
-    tpc, _ = create_trafo_collection(net_diff, size=0.05)
-    draw_collections([tpc, tlc, pc, lc])
+    pc = ppp.create_bus_collection(net_diff, size=0.1)
+    lc = ppp.create_line_collection(
+        net_diff, use_bus_geodata=False, cmap=cmap, norm=norm, cbar_title='Absolute Change in Line Loading (%)'
+    )
+    _, tlc = ppp.create_trafo_collection(net_diff, cmap=cmap, norm=norm, size=0.05)
+    tpc, _ = ppp.create_trafo_collection(net_diff, size=0.05)
+    ppp.draw_collections([tpc, tlc, pc, lc])
     fig = plt.gcf()
     plt.show()
 
@@ -925,7 +914,6 @@ def generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc):
 
 
 def nonuniform_factor_multiply(ser_c_water, c_load, exogenous_labs, net, df_geninfo):
-
     # Nonuniform coefficients
     df_geninfo = df_geninfo.merge(ser_c_water, left_on=['Plant Name'], right_index=True, how='left')
     df_geninfo.iloc[:, -1].fillna(0, inplace=True)  # Joined column will always be last
