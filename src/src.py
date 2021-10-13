@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 import dask.dataframe as dd
 import pandapower as pp
-#import pandapower.plotting as ppp
+import pandapower.plotting as ppp
 from svglib.svglib import svg2rlg
 import matplotlib as mpl
 from sklearn import tree
