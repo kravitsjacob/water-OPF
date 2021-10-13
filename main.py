@@ -86,6 +86,9 @@ def main():
     n_uniform_steps = 10
     n_nonuniform_samples = 1024 * (2 * 10 + 2)  # for saltelli sampling 1024
 
+    n_uniform_steps = 2
+    n_nonuniform_samples = 10  # for saltelli sampling 1024
+
     # Inputs
     inputs = input_parse()
 
@@ -109,7 +112,7 @@ def main():
     if not os.path.exists(inputs['path_to_case_match_water']):
         # Import EIA data
         if os.path.exists(inputs['path_to_EIA']):
-            df_EIA = pd.read_hdf(inputs['path_to_EIA', 'df_EIA'])  # Load checkpoint
+            df_EIA = pd.read_hdf(inputs['path_to_EIA'], 'df_EIA')  # Load checkpoint
         else:
             df_EIA = src.import_EIA(inputs['path_to_EIA_raw'])
             print('Success: import_EIA')
