@@ -9,10 +9,11 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 import dask.dataframe as dd
 import pandapower as pp
+#import pandapower.plotting as ppp
 from svglib.svglib import svg2rlg
 import matplotlib as mpl
-import pandapower.plotting as ppp
-from dtreeviz.trees import *  # Requires pip version
+from sklearn import tree
+import dtreeviz.trees as dtviz # Requires pip version, conflicts with pandapower.plotting
 
 
 def network_to_gen_info(net):
@@ -734,54 +735,6 @@ def table_effect_of_withdrawal_weight_line_flows(df):
     return df
 
 
-def viz_effect_of_withdrawal_weight_line_flows(net):
-    # Get uniform df for subsets (See uniform_sa for references)
-    t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
-    df_search = pd.DataFrame({'Uniform Water Coefficient': [0.5, 0.5],
-                              'Uniform Loading Coefficient': [1.5, 1.5],
-                              'Withdrawal Weight ($/Gallon)': [0.0, 0.1],
-                              'Consumption Weight ($/Gallon)': [0.0, 0.0]})
-    df_gen_info = network_to_gen_info(net)
-    beta_with_median = df_gen_info['Median Withdrawal Rate (Gallon/kWh)'].values
-    beta_con_median = df_gen_info['Median Consumption Rate (Gallon/kWh)'].values
-    beta_load_median = net.load['p_mw'].values
-    df_exogenous = df_search.apply(lambda row: uniform_input_factor_multiply(
-        row['Uniform Water Coefficient'],
-        row['Uniform Loading Coefficient'],
-        beta_with_median,
-        beta_con_median,
-        beta_load_median,
-        net.exogenous_labs[2:]  # First two parameters in df_search
-    ), axis=1)
-    df_search_exogenous = pd.concat([df_search, df_exogenous], axis=1)
-    list_nets = list(df_search_exogenous.apply(
-        lambda row: water_OPF_wrapper(row[net.exogenous_labs], t, net, output_type='net'),
-        axis=1
-    ))
-
-    # Get differences in flows
-    net_diff = copy.deepcopy(list_nets[0])
-    net_diff.res_line['loading_percent'] = abs(list_nets[0].res_line['loading_percent'] - list_nets[1].res_line['loading_percent'])
-    net_diff.res_trafo['loading_percent'] = abs(
-        list_nets[0].res_trafo['loading_percent'] - list_nets[1].res_trafo['loading_percent'])
-
-    # Get plots of lines flows in network
-    ppp.create_generic_coordinates(net_diff)
-    cmap = mpl.cm.nipy_spectral
-    norm = mpl.colors.Normalize(vmin=0.0, vmax=50.0)
-    pc = ppp.create_bus_collection(net_diff, size=0.1)
-    lc = ppp.create_line_collection(
-        net_diff, use_bus_geodata=False, cmap=cmap, norm=norm, cbar_title='Absolute Change in Line Loading (%)'
-    )
-    _, tlc = ppp.create_trafo_collection(net_diff, cmap=cmap, norm=norm, size=0.05)
-    tpc, _ = ppp.create_trafo_collection(net_diff, size=0.05)
-    ppp.draw_collections([tpc, tlc, pc, lc])
-    fig = plt.gcf()
-    plt.show()
-
-    return fig
-
-
 def effect_of_withdrawal_weight_line_flows(net):
     # Preparing information (could go in optimization_information later)
     net = copy.deepcopy(net)
@@ -873,25 +826,32 @@ def fit_single_models(df, obj_labs, factor_labs):
     return mods
 
 
-def dtreeViz(mods, df, uniform_factor_labs):
+def create_trees(mods, df, uniform_factor_labs):
     drawing_ls = []
     for key in mods:
-        viz = dtreeviz(mods[key],
-                       df[uniform_factor_labs],
-                       df[key],
-                       target_name=key,
-                       feature_names=uniform_factor_labs,
-                       orientation='LR')
-        viz.save('temp.svg')
-        drawing_ls.append(svg2rlg('temp.svg'))
-        os.remove('temp.svg')
-        os.remove('temp')
+        try:
+            viz = dtviz.dtreeviz(
+                mods[key],
+                df[uniform_factor_labs],
+                df[key],
+                target_name=key,
+                feature_names=uniform_factor_labs,
+                orientation='LR',
+                precision=0
+            )
+            viz.save('temp.svg')
+            print(f'Success: Tree created for {key}')
+            drawing_ls.append(svg2rlg('temp.svg'))
+            os.remove('temp.svg')
+            os.remove('temp')
+        except AttributeError:
+            print('AttributeError: Cannot use both `dtreeviz` and `pandapower.plotting`')
     return drawing_ls
 
 
 def uniform_sa_tree(df, net):
     mods = fit_single_models(df, net.objective_labs, net.uniform_input_factor_labs)
-    drawing_ls = dtreeViz(mods, df, net.uniform_input_factor_labs)
+    drawing_ls = create_trees(mods, df, net.uniform_input_factor_labs)
     return drawing_ls
 
 
