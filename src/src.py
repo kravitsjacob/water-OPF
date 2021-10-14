@@ -628,6 +628,7 @@ def uniform_sa(net, n_tasks, n_steps):
     beta_with_median = df_gen_info['Median Withdrawal Rate (Gallon/kWh)'].values
     beta_con_median = df_gen_info['Median Consumption Rate (Gallon/kWh)'].values
     beta_load_median = net.load['p_mw'].values
+    print('Success: Uniform SA, Extract Medians')
     df_exogenous = df_search.apply(lambda row: uniform_input_factor_multiply(
         row['Uniform Water Coefficient'],
         row['Uniform Loading Coefficient'],
@@ -636,20 +637,22 @@ def uniform_sa(net, n_tasks, n_steps):
         beta_load_median,
         net.exogenous_labs[2:]  # First two parameters in df_search
     ), axis=1)
+    print('Success: Uniform SA, Multiply exogenous')
 
     # Combine input factor grid and exogenous parameters
     df_search_exogenous = pd.concat([df_search, df_exogenous], axis=1)
 
     # Run Sampling
     ddf_search_exogenous = dd.from_pandas(df_search_exogenous, npartitions=n_tasks)
+    print('Success: Uniform SA, Dask Conversion')
     df_results = ddf_search_exogenous.apply(
         lambda row: water_opf_wrapper(row[net.exogenous_labs], t, net),
         axis=1,
         meta=pd.DataFrame(columns=net.results_labs, dtype='float64')
     ).compute(scheduler='processes')
+    print('Success: Uniform SA, Grid Sampled')
     df_uniform = pd.concat([df_search_exogenous, df_results], axis=1)
     df_uniform = df_uniform.drop_duplicates()  # Sometimes the parallel jobs replicate rows
-    print('Success: Grid Sampled')
 
     return df_uniform
 
@@ -1033,12 +1036,14 @@ def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
             net,
             net.exogenous_labs
         )
+        print('Success: Nonuniform SA, Multiply exogenous')
 
         # Combine input factor grid and exogenous parameters
         df_search_exogenous = pd.concat([df_search, df_exogenous], axis=1)
 
         # Evaluate model
         ddf_search_exogenous = dd.from_pandas(df_search_exogenous, npartitions=n_tasks)
+        print('Success: Nonuniform SA, Dask Conversion')
         df_results = ddf_search_exogenous.apply(
             lambda row_loc: water_opf_wrapper(row_loc[net.exogenous_labs], t, net),
             axis=1,
