@@ -118,9 +118,6 @@ def main():
     n_uniform_steps = 10
     n_nonuniform_samples = 1024 * (2 * 10 + 2)  # for saltelli sampling 1024
 
-    n_uniform_steps = 2
-    n_nonuniform_samples = 10 #1024 * (2 * 10 + 2)  # for saltelli sampling 1024
-
     # Inputs
     inputs = input_parse()
 
