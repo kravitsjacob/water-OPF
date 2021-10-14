@@ -546,8 +546,8 @@ def water_opf(ser_exogenous, net, t):
     # Run DC OPF
     try:
         pp.rundcopp(net)
-    except:
-        print('Warning: Optimization did not converge')
+    except pp.optimal_powerflow.OPFNotConverged:
+        print('OPFNotConverged: DC OPF did not converge returning nan values')
 
     return net
 
@@ -687,7 +687,7 @@ def get_plant_output_ratio(df, df_gen_info, uniform_factor_labs, obj_labs):
 
     # Get generator output
     df_power_output = df.loc[:, df.columns.str.contains('Power Output')]
-    df_power_output.columns = df_power_output.columns.str.extract('(\d+)').astype(int)[0].tolist()
+    df_power_output.columns = df_power_output.columns.str.extract(r'(\d+)').astype(int)[0].tolist()
     df_power_output = df_power_output.transpose()
 
     # Combine into plants
@@ -937,8 +937,8 @@ def nonuniform_factor_multiply(ser_c_water, c_load, exogenous_labs, net, df_geni
 
     # Uniform coefficients
     beta_load = net.load['p_mw'].values * c_load
-    beta_with = (df_geninfo['Median Withdrawal Rate (Gallon/kWh)'] * df_geninfo.iloc[:,-1]).values
-    beta_con = (df_geninfo['Median Consumption Rate (Gallon/kWh)'] * df_geninfo.iloc[:,-1]).values
+    beta_with = (df_geninfo['Median Withdrawal Rate (Gallon/kWh)'] * df_geninfo.iloc[:, -1]).values
+    beta_con = (df_geninfo['Median Consumption Rate (Gallon/kWh)'] * df_geninfo.iloc[:, -1]).values
     vals = np.concatenate((beta_with, beta_con, beta_load))
     idxs = exogenous_labs[2:]
     return pd.Series(vals, index=idxs)
@@ -1040,7 +1040,7 @@ def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
         # Evaluate model
         ddf_search_exogenous = dd.from_pandas(df_search_exogenous, npartitions=n_tasks)
         df_results = ddf_search_exogenous.apply(
-            lambda row: water_opf_wrapper(row[net.exogenous_labs], t, net),
+            lambda row_loc: water_opf_wrapper(row_loc[net.exogenous_labs], t, net),
             axis=1,
             meta=pd.DataFrame(columns=net.results_labs, dtype='float64')
         ).compute(scheduler='processes')
