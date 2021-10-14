@@ -2,6 +2,7 @@ import sys
 import os
 import multiprocessing
 import configparser
+import argparse
 
 import pandapower.converter
 import pandas as pd
@@ -14,12 +15,45 @@ import src
 def input_parse():
     # Local vars
     config_inputs = configparser.ConfigParser()
+    argparse_inputs = argparse.ArgumentParser()
+
+    # Command line arguments (these get priority)
+    argparse_inputs.add_argument(
+        '-c',
+        '--config_file',
+        type=str,
+        action='store',
+        help='Path to configuration file',
+        required=True
+    )
+    argparse_inputs.add_argument(
+        '-n',
+        '--n_tasks',
+        type=int,
+        action='store',
+        help='Number of tasks for parallel processing',
+        required=False
+    )
+    argparse_inputs.add_argument(
+        '-p',
+        '--path_to_data',
+        type=str,
+        action='store',
+        help='Path to main data folder',
+        required=False
+    )
+
+    # Parse arguments
+    argparse_inputs = argparse_inputs.parse_args()
 
     # Parse config file
-    config_inputs.read('config.ini')
+    config_inputs.read(argparse_inputs.config_file)
 
     # Path for Main IO
     path_to_data = config_inputs['MAIN IO']['data']
+    if argparse_inputs.path_to_data:  # Command line gets priority
+        path_to_data = argparse_inputs.path_to_data
+        print(f'Command line inputs get priority over config file {path_to_data=}')
 
     # Paths for manual_files
     path_to_gen_matches = os.path.join(path_to_data, config_inputs['MANUAL FILES']['gen_matches'])
@@ -48,6 +82,10 @@ def input_parse():
 
     # Parallel Information
     n_tasks = os.cpu_count()
+    if argparse_inputs.n_tasks:  # Command line gets priority
+        n_tasks = argparse_inputs.n_tasks
+        print(f'Command line inputs get priority over config file {n_tasks=}')
+
 
     # Store Inputs
     inputs = {
