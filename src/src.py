@@ -502,7 +502,7 @@ def get_uniform_search(df_gridspecs):
 def water_opf(ser_exogenous, net, t):
     # Create DataFrame of loads
     df_load = ser_exogenous[ser_exogenous.index.str.contains('Load')].to_frame('Load (MW)')
-    df_load['bus'] = df_load.index.str.extract('(\d+)').astype(int).values
+    df_load['bus'] = df_load.index.str.extract(r'(\d+)').astype(int).values
     df_load.reset_index(inplace=True, drop=True)
 
     # Assign Loads
@@ -512,7 +512,7 @@ def water_opf(ser_exogenous, net, t):
     # Create DataFrame of withdrawal and consumption values
     df_withdrawal = \
         ser_exogenous[ser_exogenous.index.str.contains('Withdrawal Rate')].to_frame('Withdrawal Rate (Gallon/kWh)')
-    df_withdrawal['MATPOWER Index'] = df_withdrawal.index.str.extract('(\d+)').astype(int).values
+    df_withdrawal['MATPOWER Index'] = df_withdrawal.index.str.extract(r'(\d+)').astype(int).values
     df_withdrawal.reset_index(inplace=True, drop=True)
 
     # Assign withdrawal terms
@@ -521,7 +521,7 @@ def water_opf(ser_exogenous, net, t):
     # Create DataFrame of consumption values
     df_consumption = \
         ser_exogenous[ser_exogenous.index.str.contains('Consumption Rate')].to_frame('Consumption Rate (Gallon/kWh)')
-    df_consumption['MATPOWER Index'] = df_consumption.index.str.extract('(\d+)').astype(int).values
+    df_consumption['MATPOWER Index'] = df_consumption.index.str.extract(r'(\d+)').astype(int).values
     df_consumption.reset_index(inplace=True, drop=True)
 
     # Assign consumption terms
