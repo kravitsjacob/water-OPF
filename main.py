@@ -1,7 +1,5 @@
 import sys
-sys.path.insert(0, 'src')
 import os
-import src
 import multiprocessing
 import configparser
 
@@ -9,13 +7,8 @@ import pandapower.converter
 import pandas as pd
 from reportlab.graphics import renderPDF
 
-
-# if len(sys.argv) > 1:
-#     path_to_data = sys.argv[1]
-#     n_tasks = int(sys.argv[2])
-# else:
-#     path_to_data = 'G:\My Drive\Documents (Stored)\data_sets\water-OPF-v2.2'
-#     n_tasks = os.cpu_count()
+sys.path.insert(0, 'src')
+import src
 
 
 def input_parse():
@@ -85,9 +78,6 @@ def main():
     # Local vars
     n_uniform_steps = 10
     n_nonuniform_samples = 1024 * (2 * 10 + 2)  # for saltelli sampling 1024
-
-    n_uniform_steps = 2
-    n_nonuniform_samples = 10  # for saltelli sampling 1024
 
     # Inputs
     inputs = input_parse()
