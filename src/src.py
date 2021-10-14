@@ -4,7 +4,7 @@ import itertools
 
 import pandas as pd
 import numpy as np
-import seaborn as sns; sns.set()
+import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 import dask.dataframe as dd
@@ -13,7 +13,8 @@ import pandapower.plotting as ppp
 from svglib.svglib import svg2rlg
 import matplotlib as mpl
 from sklearn import tree
-import dtreeviz.trees as dtviz # Requires pip version, conflicts with pandapower.plotting
+import dtreeviz.trees as dtviz  # Requires pip version, conflicts with pandapower.plotting
+sns.set()
 
 
 def network_to_gen_info(net):
@@ -41,7 +42,6 @@ def add_gen_info_to_network(df_gen_info, net):
     return net
 
 
-
 def grid_setup(net, df_gen_info):
 
     # Initialize local vars
@@ -58,10 +58,6 @@ def grid_setup(net, df_gen_info):
 
 
 def generator_match(net, df_gen_matches):
-
-    # Initialize local vars
-    gen_types = ['gen', 'sgen', 'ext_grid']
-
     # Anonymous plant names
     powerworld_plants = df_gen_matches['POWERWORLD Plant Name'].unique()
     anonymous_plants = [f'Plant {i}' for i in range(1, len(powerworld_plants) + 1)]
@@ -74,14 +70,14 @@ def generator_match(net, df_gen_matches):
     return net
 
 
-def import_EIA(pathto_EIA):
+def import_eia(path_to_eia):
     # Local Vars
     years = ['2019', '2018', '2017', '2016', '2015', '2014']
     df_list = []
 
     # Import all dataframes
     for i in years:
-        path = os.path.join(pathto_EIA, 'cooling_detail_' + i + '.xlsx')
+        path = os.path.join(path_to_eia, 'cooling_detail_' + i + '.xlsx')
         print(i)
 
         # Import Dataframe
@@ -96,24 +92,28 @@ def import_EIA(pathto_EIA):
     return df
 
 
-def get_cooling_system(df_EIA, df_gen_info):
-
+def get_cooling_system(df_eia, df_gen_info):
     # Matches from manual analysis of EIA dataset
-    df_EIA = df_EIA.drop_duplicates(subset='Plant Name', keep='first')
+    df_eia = df_eia.drop_duplicates(subset='Plant Name', keep='first')
     df_gen_info['923 Cooling Type'] = df_gen_info.merge(
-        df_EIA,
+        df_eia,
         right_on='Plant Name',
         left_on='EIA Plant Name',
         how='left'
     )['923 Cooling Type']
 
     # Assumptions about cooling systems
-    df_gen_info.loc[df_gen_info['MATPOWER Fuel'] == 'wind', '923 Cooling Type'] = 'No Cooling System'  # Wind is assumed to not use water
-    df_gen_info.loc[(df_gen_info['MATPOWER Type'] == 'GT') & (df_gen_info['MATPOWER Fuel'] == 'ng') & (df_gen_info['MATPOWER Capacity (MW)'] < 30), '923 Cooling Type'] = 'No Cooling System'  # Assume Small Capacity Natural Gas Turbines Don't Have Cooling System
+    df_gen_info.loc[df_gen_info['MATPOWER Fuel'] == 'wind', '923 Cooling Type'] = \
+        'No Cooling System'  # Wind is assumed to not use water
+    df_gen_info.loc[(df_gen_info['MATPOWER Type'] == 'GT') & (df_gen_info['MATPOWER Fuel'] == 'ng') &
+                    (df_gen_info['MATPOWER Capacity (MW)'] < 30), '923 Cooling Type'] = \
+        'No Cooling System'  # Assume Small Capacity Natural Gas Turbines Don't Have Cooling System
 
     # One off matching based on searching
-    df_gen_info.loc[df_gen_info['EIA Plant Name'] == 'Interstate', '923 Cooling Type'] = 'RI'  # Based on regional data availability
-    df_gen_info.loc[df_gen_info['EIA Plant Name'] == 'Gibson City Energy Center LLC', '923 Cooling Type'] = 'RI'  # Based on regional data availability
+    df_gen_info.loc[df_gen_info['EIA Plant Name'] == 'Interstate', '923 Cooling Type'] = \
+        'RI'  # Based on regional data availability
+    df_gen_info.loc[df_gen_info['EIA Plant Name'] == 'Gibson City Energy Center LLC', '923 Cooling Type'] = \
+        'RI'  # Based on regional data availability
     df_gen_info.loc[df_gen_info['EIA Plant Name'] == 'Rantoul', '923 Cooling Type'] = 'OC'
     df_gen_info.loc[df_gen_info['EIA Plant Name'] == 'Tuscola Station', '923 Cooling Type'] = 'OC'
     df_gen_info.loc[df_gen_info['EIA Plant Name'] == 'E D Edwards', '923 Cooling Type'] = 'OC'
@@ -144,10 +144,10 @@ def get_regional(df):
     df = df[df['State'].isin(['IL'])]
 
     # Filter to only cooling systems in synthetic region (Hardcoded)
-    df = df[((df['Fuel Type'] == 'coal') & (df['923 Cooling Type'] == 'RI')) |\
-            ((df['Fuel Type'] == 'coal') & (df['923 Cooling Type'] == 'RC')) |\
-            ((df['Fuel Type'] == 'coal') & (df['923 Cooling Type'] == 'OC')) |\
-            ((df['Fuel Type'] == 'nuclear') & (df['923 Cooling Type'] == 'RC')) |\
+    df = df[((df['Fuel Type'] == 'coal') & (df['923 Cooling Type'] == 'RI')) |
+            ((df['Fuel Type'] == 'coal') & (df['923 Cooling Type'] == 'RC')) |
+            ((df['Fuel Type'] == 'coal') & (df['923 Cooling Type'] == 'OC')) |
+            ((df['Fuel Type'] == 'nuclear') & (df['923 Cooling Type'] == 'RC')) |
             ((df['Fuel Type'] == 'ng') & (df['923 Cooling Type'] == 'RI'))]
 
     # Filter based on real values
@@ -180,59 +180,73 @@ def get_regional(df):
         (df['Withdrawal Rate (Gallon/kWh)'] - df['Withdrawal Rate (Gallon/kWh) Median']).abs()
     df['Consumption Rate (Gallon/kWh) Absolute Difference'] = \
         (df['Consumption Rate (Gallon/kWh)'] - df['Consumption Rate (Gallon/kWh) Median']).abs()
-    df_MAD = df.groupby(['Plant Name', 'Generator ID', 'Boiler ID', 'Cooling ID']).median()
+    df_mad = df.groupby(['Plant Name', 'Generator ID', 'Boiler ID', 'Cooling ID']).median()
     df = df.reset_index()
     df[['Withdrawal Rate (Gallon/kWh) MAD', 'Consumption Rate (Gallon/kWh) MAD']] = df.join(
-        df_MAD,
+        df_mad,
         on=['Plant Name', 'Generator ID', 'Boiler ID', 'Cooling ID'],
         rsuffix=' MAD'
     )[['Withdrawal Rate (Gallon/kWh) Absolute Difference MAD', 'Consumption Rate (Gallon/kWh) Absolute Difference MAD']]
     df['Withdrawal Rate (Gallon/kWh) Modified Z Score'] = \
-        (0.6745 * (df['Withdrawal Rate (Gallon/kWh)'] - df['Withdrawal Rate (Gallon/kWh) Median'])/df['Withdrawal Rate (Gallon/kWh) MAD']).abs()
+        (0.6745 * (df['Withdrawal Rate (Gallon/kWh)'] - df['Withdrawal Rate (Gallon/kWh) Median'])
+         / df['Withdrawal Rate (Gallon/kWh) MAD']).abs()
     df['Consumption Rate (Gallon/kWh) Modified Z Score'] = \
-        (0.6745 * (df['Consumption Rate (Gallon/kWh)'] - df['Consumption Rate (Gallon/kWh) Median']) / df['Consumption Rate (Gallon/kWh) MAD']).abs()
-    df = df[(df['Consumption Rate (Gallon/kWh) Modified Z Score'] < 3.5) & (df['Withdrawal Rate (Gallon/kWh) Modified Z Score'] < 3.5)]
+        (0.6745 * (df['Consumption Rate (Gallon/kWh)'] - df['Consumption Rate (Gallon/kWh) Median'])
+         / df['Consumption Rate (Gallon/kWh) MAD']).abs()
+    df = df[(df['Consumption Rate (Gallon/kWh) Modified Z Score'] < 3.5) &
+            (df['Withdrawal Rate (Gallon/kWh) Modified Z Score'] < 3.5)]
 
     return df
 
 
 def kmeans_wrapper(df_region, cool_type, n_cluster):
     idxs = df_region.index[(df_region['Fuel Type'] == 'coal') & (df_region['923 Cooling Type'] == cool_type)]
-    kmeans = KMeans(n_clusters=n_cluster, random_state=1008).fit(df_region.loc[idxs, ['Summer Capacity of Steam Turbines (MW)']].values)
+    kmeans = KMeans(
+        n_clusters=n_cluster, random_state=1008
+    ).fit(df_region.loc[idxs, ['Summer Capacity of Steam Turbines (MW)']].values)
     df_region.loc[idxs, 'Cluster'] = kmeans.labels_
     return kmeans, df_region
 
 
 def get_cluster(df_geninfo, kmeans, fuel_type, cool_type):
-    idxs_geninfo = df_geninfo.index[(df_geninfo['MATPOWER Fuel'] == fuel_type) & (df_geninfo['923 Cooling Type'] == cool_type)]
-    df_geninfo.loc[idxs_geninfo, 'Cluster'] = kmeans.predict(df_geninfo.loc[idxs_geninfo, 'MATPOWER Capacity (MW)'].values.reshape(-1, 1))
+    idxs_geninfo = df_geninfo.index[(df_geninfo['MATPOWER Fuel'] == fuel_type) &
+                                    (df_geninfo['923 Cooling Type'] == cool_type)]
+    df_geninfo.loc[idxs_geninfo, 'Cluster'] = kmeans.predict(
+        df_geninfo.loc[idxs_geninfo, 'MATPOWER Capacity (MW)'].values.reshape(-1, 1)
+    )
     return df_geninfo
 
 
 def get_cluster_data(df_geninfo, df_region, fuel_type, cool_type, cluster):
     # Get regional cluster data
-    idxs_region = df_region.index[(df_region['Fuel Type'] == fuel_type) & (df_region['923 Cooling Type'] == cool_type) & (df_region['Cluster'] == cluster)]
+    idxs_region = df_region.index[(df_region['Fuel Type'] == fuel_type) &
+                                  (df_region['923 Cooling Type'] == cool_type) & (df_region['Cluster'] == cluster)]
     arr_with = df_region.loc[idxs_region, 'Withdrawal Rate (Gallon/kWh)'].values
     arr_con = df_region.loc[idxs_region, 'Consumption Rate (Gallon/kWh)'].values
 
     # Add to generator info
-    idxs_geninfo = df_geninfo.index[(df_geninfo['MATPOWER Fuel'] == fuel_type) & (df_geninfo['923 Cooling Type'] == cool_type) & (df_geninfo['Cluster'] == cluster)]
-    df_geninfo.loc[idxs_geninfo, 'Withdrawal Rate Cluster Data (Gallon/kWh)'] = df_geninfo.loc[idxs_geninfo].apply(lambda row: arr_with, axis=1)
-    df_geninfo.loc[idxs_geninfo, 'Consumption Rate Cluster Data (Gallon/kWh)'] = df_geninfo.loc[idxs_geninfo].apply(lambda row: arr_con, axis=1)
+    idxs_geninfo = df_geninfo.index[(df_geninfo['MATPOWER Fuel'] == fuel_type) &
+                                    (df_geninfo['923 Cooling Type'] == cool_type) & (df_geninfo['Cluster'] == cluster)]
+    df_geninfo.loc[idxs_geninfo, 'Withdrawal Rate Cluster Data (Gallon/kWh)'] = df_geninfo.loc[idxs_geninfo].apply(
+        lambda row: arr_with, axis=1
+    )
+    df_geninfo.loc[idxs_geninfo, 'Consumption Rate Cluster Data (Gallon/kWh)'] = df_geninfo.loc[idxs_geninfo].apply(
+        lambda row: arr_con, axis=1
+    )
     return df_geninfo
 
 
 def get_generator_water_data(df_region, df_geninfo):
     # K means clustering for coal plants
-    kmeans_coal_RI, df_region = kmeans_wrapper(df_region, 'RI', n_cluster=3)
-    kmeans_coal_RC, df_region = kmeans_wrapper(df_region, 'RC', n_cluster=2)
-    kmeans_coal_OC, df_region = kmeans_wrapper(df_region, 'OC', n_cluster=4)
+    kmeans_coal_ri, df_region = kmeans_wrapper(df_region, 'RI', n_cluster=3)
+    kmeans_coal_rc, df_region = kmeans_wrapper(df_region, 'RC', n_cluster=2)
+    kmeans_coal_oc, df_region = kmeans_wrapper(df_region, 'OC', n_cluster=4)
     df_region['Cluster'] = df_region['Cluster'].fillna(1.0)  # All other fuel types have the same cluster
 
     # Get cluster of case generators
-    df_geninfo = get_cluster(df_geninfo, kmeans_coal_RI, 'coal', 'RI')
-    df_geninfo = get_cluster(df_geninfo, kmeans_coal_RC, 'coal', 'RC')
-    df_geninfo = get_cluster(df_geninfo, kmeans_coal_OC, 'coal', 'OC')
+    df_geninfo = get_cluster(df_geninfo, kmeans_coal_ri, 'coal', 'RI')
+    df_geninfo = get_cluster(df_geninfo, kmeans_coal_rc, 'coal', 'RC')
+    df_geninfo = get_cluster(df_geninfo, kmeans_coal_oc, 'coal', 'OC')
     df_geninfo['Cluster'] = df_geninfo['Cluster'].fillna(1.0)  # All other fuel types have the same cluster
 
     # Add cluster data for each case generator
@@ -255,11 +269,16 @@ def get_generator_water_data(df_region, df_geninfo):
     return df_geninfo, df_region
 
 
-def get_historic_nonuniform_water_coefficients(df_region, df_gen_info_match_water):
-    df_region['Uniform Water Coefficient Consumption'] = df_region['Withdrawal Rate (Gallon/kWh)'] / df_region['Withdrawal Rate (Gallon/kWh) Median']
-    df_region['Uniform Water Coefficient Withdrawal'] = df_region['Consumption Rate (Gallon/kWh)'] / df_region['Consumption Rate (Gallon/kWh) Median']
-    df = df_region.melt(value_vars=['Uniform Water Coefficient Consumption', 'Uniform Water Coefficient Withdrawal'],
-                      id_vars=['923 Cooling Type', 'Fuel Type'], var_name='Exogenous Parameter')
+def get_historic_nonuniform_water_coefficients(df_region):
+    df_region['Uniform Water Coefficient Consumption'] = \
+        df_region['Withdrawal Rate (Gallon/kWh)'] / df_region['Withdrawal Rate (Gallon/kWh) Median']
+    df_region['Uniform Water Coefficient Withdrawal'] = \
+        df_region['Consumption Rate (Gallon/kWh)'] / df_region['Consumption Rate (Gallon/kWh) Median']
+    df = df_region.melt(
+        value_vars=['Uniform Water Coefficient Consumption', 'Uniform Water Coefficient Withdrawal'],
+        id_vars=['923 Cooling Type', 'Fuel Type'],
+        var_name='Exogenous Parameter'
+    )
     df['Fuel/Cooling Type'] = df['Fuel Type'] + '/' + df['923 Cooling Type']
     df = df.drop('Exogenous Parameter', axis=1)
     df = df.sort_values('Fuel Type')
@@ -277,8 +296,17 @@ def region_distributution_plotter(df):
 def region_box_plotter(df):
     df_plot = df.melt(value_vars=['Withdrawal Rate (Gallon/kWh)', 'Consumption Rate (Gallon/kWh)'],
                       id_vars=['923 Cooling Type', 'Fuel Type'], var_name='Exogenous Parameter')
-    g = sns.catplot(data=df_plot, x='value', y='923 Cooling Type', col='Exogenous Parameter', row='Fuel Type',
-                     kind='box', sharex='col', height=3, aspect=1.2)
+    g = sns.catplot(
+        data=df_plot,
+        x='value',
+        y='923 Cooling Type',
+        col='Exogenous Parameter',
+        row='Fuel Type',
+        kind='box',
+        sharex='col',
+        height=3,
+        aspect=1.2
+    )
     g.axes[0, 0].set_title('Coal')
     g.axes[0, 1].set_title('Coal')
     g.axes[1, 0].set_title('Nuclear')
@@ -299,7 +327,9 @@ def hnwc_plotter(df, df_gen_info):
     df_titles['Fuel/Cooling Type'] = df_titles['MATPOWER Fuel'] + '/' + df_titles['923 Cooling Type']
     df_titles = df_titles.groupby('Fuel/Cooling Type')['Plant Name'].apply(set).reset_index(name='Plants')
     df_titles['Grouped Plants'] = df_titles.apply(
-        lambda row: 'Plant ID: ' + ", ".join([item for subitem in row['Plants'] for item in subitem.split() if item.isdigit()]),
+        lambda row: 'Plant ID: ' + ", ".join(
+            [item for subitem in row['Plants'] for item in subitem.split() if item.isdigit()]
+        ),
         axis=1
     )
     df_titles['Title'] = df_titles['Fuel/Cooling Type'] + ' (' + df_titles['Grouped Plants'] + ')'
@@ -337,16 +367,16 @@ def coal_plotter(df):
     return g
 
 
-def cooling_system_information(net, df_EIA):
+def cooling_system_information(net, df_eia):
 
     # Convert generator information dataframe (this makes the processing easier)
     df_gen_info = network_to_gen_info(net)
 
     # Get cooling system from matched EIA generators
-    df_gen_info = get_cooling_system(df_EIA, df_gen_info)
+    df_gen_info = get_cooling_system(df_eia, df_gen_info)
 
     # Get regional estimates of water use
-    df_region = get_regional(df_EIA)
+    df_region = get_regional(df_eia)
 
     # Get generator water use
     df_gen_info, df_region = get_generator_water_data(df_region, df_gen_info)
@@ -363,7 +393,7 @@ def cooling_system_information(net, df_EIA):
     net = add_gen_info_to_network(df_gen_info, net)
 
     # Get historic nonuniform water coefficients
-    df_hnwc = get_historic_nonuniform_water_coefficients(df_region, df_gen_info)
+    df_hnwc = get_historic_nonuniform_water_coefficients(df_region)
 
     # Plotting
     fig_region_distributution_plotter = region_distributution_plotter(df_region).figure
@@ -382,8 +412,8 @@ def optimization_information(net):
                       'Water Withdrawal (Gallon)',
                       'Water Consumption (Gallon)']
     internal_cost_term_labs = ['Cost Term ($)',
-                                      'Cost Term ($/MW)',
-                                      'Cost Term ($/MW^2)']
+                               'Cost Term ($/MW)',
+                               'Cost Term ($/MW^2)']
     uniform_input_factor_labs = ['Withdrawal Weight ($/Gallon)', 'Consumption Weight ($/Gallon)',
                                  'Uniform Loading Coefficient', 'Uniform Water Coefficient']
     internal_water_term_labs = ['Withdrawal Term ($/MW)', 'Consumption Term ($/MW)']
@@ -434,9 +464,9 @@ def optimization_information(net):
 
     # Add MATPOWER index to poly_cost
     df_gen_info = network_to_gen_info(net)  # Turn into dataframe to make easier merge
-    net.poly_cost['MATPOWER Index'] = \
-    net.poly_cost.merge(df_gen_info, left_on=['element', 'et'], right_on=['PANDAPOWER Index', 'PANDAPOWER Type'])[
-        'MATPOWER Index']
+    net.poly_cost['MATPOWER Index'] = net.poly_cost.merge(
+        df_gen_info, left_on=['element', 'et'], right_on=['PANDAPOWER Index', 'PANDAPOWER Type']
+    )['MATPOWER Index']
 
     return net
 
@@ -469,7 +499,7 @@ def get_uniform_search(df_gridspecs):
     return df_search
 
 
-def water_OPF(ser_exogenous, net, t):
+def water_opf(ser_exogenous, net, t):
     # Create DataFrame of loads
     df_load = ser_exogenous[ser_exogenous.index.str.contains('Load')].to_frame('Load (MW)')
     df_load['bus'] = df_load.index.str.extract('(\d+)').astype(int).values
@@ -480,7 +510,8 @@ def water_OPF(ser_exogenous, net, t):
     net.load['p_mw'] = net.load['Load (MW)']
 
     # Create DataFrame of withdrawal and consumption values
-    df_withdrawal = ser_exogenous[ser_exogenous.index.str.contains('Withdrawal Rate')].to_frame('Withdrawal Rate (Gallon/kWh)')
+    df_withdrawal = \
+        ser_exogenous[ser_exogenous.index.str.contains('Withdrawal Rate')].to_frame('Withdrawal Rate (Gallon/kWh)')
     df_withdrawal['MATPOWER Index'] = df_withdrawal.index.str.extract('(\d+)').astype(int).values
     df_withdrawal.reset_index(inplace=True, drop=True)
 
@@ -488,7 +519,8 @@ def water_OPF(ser_exogenous, net, t):
     net.poly_cost = net.poly_cost.merge(df_withdrawal)
 
     # Create DataFrame of consumption values
-    df_consumption = ser_exogenous[ser_exogenous.index.str.contains('Consumption Rate')].to_frame('Consumption Rate (Gallon/kWh)')
+    df_consumption = \
+        ser_exogenous[ser_exogenous.index.str.contains('Consumption Rate')].to_frame('Consumption Rate (Gallon/kWh)')
     df_consumption['MATPOWER Index'] = df_consumption.index.str.extract('(\d+)').astype(int).values
     df_consumption.reset_index(inplace=True, drop=True)
 
@@ -500,8 +532,10 @@ def water_OPF(ser_exogenous, net, t):
     net.poly_cost['Consumption Power Rate (Gallon/MW)'] = net.poly_cost['Consumption Rate (Gallon/kWh)'] * t
 
     # Get water terms
-    net.poly_cost['Withdrawal Term ($/MW)'] = net.poly_cost['Withdrawal Power Rate (Gallon/MW)'] * ser_exogenous['Withdrawal Weight ($/Gallon)']
-    net.poly_cost['Consumption Term ($/MW)'] = net.poly_cost['Consumption Power Rate (Gallon/MW)'] * ser_exogenous['Consumption Weight ($/Gallon)']
+    net.poly_cost['Withdrawal Term ($/MW)'] = \
+        net.poly_cost['Withdrawal Power Rate (Gallon/MW)'] * ser_exogenous['Withdrawal Weight ($/Gallon)']
+    net.poly_cost['Consumption Term ($/MW)'] = \
+        net.poly_cost['Consumption Power Rate (Gallon/MW)'] * ser_exogenous['Consumption Weight ($/Gallon)']
 
     # Assign terms
     net.poly_cost['cp0_eur'] = net.poly_cost['Cost Term ($)']
@@ -536,12 +570,12 @@ def get_internal(net):
     return df_internal
 
 
-def water_OPF_wrapper(ser_exogenous, t, net, output_type='numeric'):
+def water_opf_wrapper(ser_exogenous, t, net, output_type='numeric'):
     # Initialize local vars
     net = copy.deepcopy(net)  # Copy network so not changed later
 
     # Run OPF
-    net = water_OPF(ser_exogenous, net, t)
+    net = water_opf(ser_exogenous, net, t)
 
     if output_type == 'net':
         return net
@@ -556,17 +590,17 @@ def water_OPF_wrapper(ser_exogenous, t, net, output_type='numeric'):
         line_loadings = net.res_line['loading_percent'].to_list()
 
         # Compute objectives
-        F_gen = (df_internal['Cost Term ($)'] +
-                 df_internal['p_mw'] * df_internal['Cost Term ($/MW)'] +
-                 df_internal['p_mw'] ** 2 * df_internal['Cost Term ($/MW^2)']).sum(min_count=1)
-        F_with = (df_internal['p_mw'] * df_internal['Withdrawal Power Rate (Gallon/MW)']).sum(min_count=1)
-        F_con = (df_internal['p_mw'] * df_internal['Consumption Power Rate (Gallon/MW)']).sum(min_count=1)
-        F_cos = F_gen +\
-                ser_exogenous['Withdrawal Weight ($/Gallon)'] * F_with +\
-                ser_exogenous['Consumption Weight ($/Gallon)'] * F_con
+        gen_obj = (df_internal['Cost Term ($)'] +
+                   df_internal['p_mw'] * df_internal['Cost Term ($/MW)'] +
+                   df_internal['p_mw'] ** 2 * df_internal['Cost Term ($/MW^2)']).sum(min_count=1)
+        with_obj = (df_internal['p_mw'] * df_internal['Withdrawal Power Rate (Gallon/MW)']).sum(min_count=1)
+        con_obj = (df_internal['p_mw'] * df_internal['Consumption Power Rate (Gallon/MW)']).sum(min_count=1)
+        cos_obj = gen_obj + \
+            ser_exogenous['Withdrawal Weight ($/Gallon)'] * with_obj + \
+            ser_exogenous['Consumption Weight ($/Gallon)'] * con_obj
 
         # Formatting Export
-        vals = [F_cos, F_gen, F_with, F_con] + generator_output + line_loadings
+        vals = [cos_obj, gen_obj, with_obj, con_obj] + generator_output + line_loadings
         ser_results = pd.Series(vals, index=net.results_labs)
 
         return ser_results
@@ -574,8 +608,11 @@ def water_OPF_wrapper(ser_exogenous, t, net, output_type='numeric'):
 
 def uniform_sa(net, n_tasks, n_steps):
     # Initialize local vars
-    df_gridspecs = pd.DataFrame(data=[[0.0, 0.1, n_steps], [0.0, 1.0, n_steps], [1.0, 1.5, n_steps], [0.5, 1.5, n_steps]],
-                                index=net.uniform_input_factor_labs, columns=['Min', 'Max', 'Number of Steps'])
+    df_gridspecs = pd.DataFrame(
+        data=[[0.0, 0.1, n_steps], [0.0, 1.0, n_steps], [1.0, 1.5, n_steps], [0.5, 1.5, n_steps]],
+        index=net.uniform_input_factor_labs,
+        columns=['Min', 'Max', 'Number of Steps']
+    )
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
     print('Success: Initialized Uniform Sensitivity Analysis')
 
@@ -606,7 +643,7 @@ def uniform_sa(net, n_tasks, n_steps):
     # Run Sampling
     ddf_search_exogenous = dd.from_pandas(df_search_exogenous, npartitions=n_tasks)
     df_results = ddf_search_exogenous.apply(
-        lambda row: water_OPF_wrapper(row[net.exogenous_labs], t, net),
+        lambda row: water_opf_wrapper(row[net.exogenous_labs], t, net),
         axis=1,
         meta=pd.DataFrame(columns=net.results_labs, dtype='float64')
     ).compute(scheduler='processes')
@@ -628,8 +665,15 @@ def viz_effect_of_withdrawal_weight_on_withdrawal(df, uniform_factor_labs, obj_l
 
     # Plot
     fig, ax = plt.subplots(figsize=(8, 5))
-    g = sns.lineplot(data=plot_df, x='Uniform Loading Coefficient', y='Water Withdrawal (Gallon)',
-                     hue='Uniform Water Coefficient', style='Withdrawal Weight ($/Gallon)', markers=True, ax=ax)
+    sns.lineplot(
+        data=plot_df,
+        x='Uniform Loading Coefficient',
+        y='Water Withdrawal (Gallon)',
+        hue='Uniform Water Coefficient',
+        style='Withdrawal Weight ($/Gallon)',
+        markers=True,
+        ax=ax
+    )
     plt.legend(bbox_to_anchor=(1.02, 1), loc='upper left', borderaxespad=0)
     plt.tight_layout()
     plt.show()
@@ -651,15 +695,23 @@ def get_plant_output_ratio(df, df_gen_info, uniform_factor_labs, obj_labs):
     df_plant_capacity_ratio = df_power_output.groupby(['Plant Name']).sum()
 
     # Get Ratio
-    df_plant_capacity_ratio = df_plant_capacity_ratio.iloc[:, 0:n_runs].divide(df_plant_capacity_ratio['MATPOWER Capacity (MW)'], axis='index') # Hardcoded
+    df_plant_capacity_ratio = df_plant_capacity_ratio.iloc[:, 0:n_runs].divide(
+        df_plant_capacity_ratio['MATPOWER Capacity (MW)'],
+        axis='index'
+    )  # Hardcoded
 
     # Combine with input factors
     df_plant_capacity_ratio = df_plant_capacity_ratio.transpose()
     df_plant_capacity_ratio = df_plant_capacity_ratio.join(df[uniform_factor_labs+obj_labs])
 
     # Get Cooling System Type
-    df_plant_capacity_ratio = pd.melt(df_plant_capacity_ratio, value_vars=plant_names,
-                                      id_vars=uniform_factor_labs + obj_labs, var_name='Plant Name', value_name='Output')
+    df_plant_capacity_ratio = pd.melt(
+        df_plant_capacity_ratio,
+        value_vars=plant_names,
+        id_vars=uniform_factor_labs + obj_labs,
+        var_name='Plant Name',
+        value_name='Output'
+    )
     df_plant_capacity_ratio = df_plant_capacity_ratio.merge(
         df_gen_info[['Plant Name', '923 Cooling Type', 'MATPOWER Fuel']])
 
@@ -671,16 +723,20 @@ def viz_effect_of_withdrawal_weight_plant_output(df):
     df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
     withdrawal_criteria = [0.0, 0.1, 0.1]
     uniform_water_criteria = [0.5, 0.5, 1.5]
-    case_a = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[0]) & (df['Uniform Water Coefficient'] == uniform_water_criteria[0])
-    case_b = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[1]) & (df['Uniform Water Coefficient'] == uniform_water_criteria[1])
-    case_c = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[2]) & (df['Uniform Water Coefficient'] == uniform_water_criteria[2])
+    case_a = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[0]) &\
+             (df['Uniform Water Coefficient'] == uniform_water_criteria[0])
+    case_b = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[1]) &\
+             (df['Uniform Water Coefficient'] == uniform_water_criteria[1])
+    case_c = (df['Withdrawal Weight ($/Gallon)'] == withdrawal_criteria[2]) &\
+             (df['Uniform Water Coefficient'] == uniform_water_criteria[2])
     df = df[case_a | case_b | case_c]
 
     # Making labels
     df['Withdrawal Weight ($/Gallon)'] = df['Withdrawal Weight ($/Gallon)'].astype('category')
     df['Fuel/Cooling Type'] = df['MATPOWER Fuel'] + '/' + df['923 Cooling Type']
     df = df.sort_values(['Uniform Water Coefficient', 'Fuel/Cooling Type'])
-    df['ID'] = '$w_{with}=$' + df['Withdrawal Weight ($/Gallon)'].astype(str) + ', $c_{water}=$' + df['Uniform Water Coefficient'].astype(str)
+    df['ID'] = '$w_{with}=$' + df['Withdrawal Weight ($/Gallon)'].astype(str) +\
+               ', $c_{water}=$' + df['Uniform Water Coefficient'].astype(str)
 
     # Creating plot
     g = sns.FacetGrid(df, row='ID', col='Fuel/Cooling Type', sharex='col', aspect=0.8, margin_titles=True)
@@ -761,7 +817,7 @@ def effect_of_withdrawal_weight_line_flows(net):
     ), axis=1)
     df_search_exogenous = pd.concat([df_search, df_exogenous], axis=1)
     list_net = list(df_search_exogenous.apply(
-        lambda row: water_OPF_wrapper(row[net.exogenous_labs], t, net, output_type='net'),
+        lambda row: water_opf_wrapper(row[net.exogenous_labs], t, net, output_type='net'),
         axis=1
     ))
 
@@ -773,10 +829,10 @@ def effect_of_withdrawal_weight_line_flows(net):
     net_diff.res_trafo['Water OPF Loading (Percent)'] = list_net[1].res_trafo['loading_percent']
 
     # Difference in flow
-    net_diff.res_line['Change in Loading (Percent)'] = net_diff.res_line['Water OPF Loading (Percent)'] - \
-                                                       net_diff.res_line['Traditional OPF Loading (Percent)']
-    net_diff.res_trafo['Change in Loading (Percent)'] = net_diff.res_trafo['Water OPF Loading (Percent)'] - \
-                                                        net_diff.res_trafo['Traditional OPF Loading (Percent)']
+    net_diff.res_line['Change in Loading (Percent)'] = \
+        net_diff.res_line['Water OPF Loading (Percent)'] - net_diff.res_line['Traditional OPF Loading (Percent)']
+    net_diff.res_trafo['Change in Loading (Percent)'] = \
+        net_diff.res_trafo['Water OPF Loading (Percent)'] - net_diff.res_trafo['Traditional OPF Loading (Percent)']
     # Tabulate line flows
     net_diff.res_line['name'] = net_diff.line['name']
     net_diff.res_trafo['name'] = net_diff.trafo['name']
@@ -866,8 +922,9 @@ def generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc):
     # Sampling
     replace = True  # with replacement
     n_inputs_factors = len(df_hnwc['Input Factor'].unique())
-    fn = lambda obj: obj.loc[rng.choice(obj.index, n_sample, replace), :]
-    df_sample = df_hnwc.groupby('Input Factor', as_index=False).apply(fn)
+    df_sample = df_hnwc.groupby('Input Factor', as_index=False).apply(
+        lambda obj: obj.loc[rng.choice(obj.index, n_sample, replace), :]
+    )
     df_sample['Sample Index'] = np.tile(np.arange(0, n_sample), n_inputs_factors)
     df_sample = df_sample.reset_index().pivot(columns='Input Factor', values='value', index='Sample Index')
     return df_sample, df_hnwc
@@ -887,13 +944,16 @@ def nonuniform_factor_multiply(ser_c_water, c_load, exogenous_labs, net, df_geni
     return pd.Series(vals, index=idxs)
 
 
-def get_nonuniform_exogenous(df_sample, df_hnwc, w_with, w_con, c_load, df_geninfo, net, exogenous_labs):
+def get_nonuniform_exogenous(df_sample, w_with, w_con, c_load, df_geninfo, net, exogenous_labs):
     # Formatting
     original_columns = df_sample.columns
     df_sample.columns = [i.split(' Non-Uniform Water Coefficient')[:][0] for i in df_sample.columns]
 
     # Multiply exogenous parameters
-    df_exogenous = df_sample.apply(lambda row: nonuniform_factor_multiply(row, c_load, exogenous_labs, net, df_geninfo), axis=1)
+    df_exogenous = df_sample.apply(
+        lambda row: nonuniform_factor_multiply(row, c_load, exogenous_labs, net, df_geninfo),
+        axis=1
+    )
 
     # Storing
     df_sample.columns = original_columns
@@ -911,7 +971,8 @@ def MGSA_FirstOrder(Input, Output, ndomain):
     output: nsample * 1 array
     ndomain: number of sub-domain the to divide a single input
     This algorithm is proposed by me. Please cite the following paper if you use this code.
-    Li, Chenzhao, and Sankaran Mahadevan. "An efficient modularized sample-based method to estimate the first-order Sobol’index." Reliability Engineering & System Safety (2016).
+    Li, Chenzhao, and Sankaran Mahadevan. "An efficient modularized sample-based method to
+    estimate the first-order Sobol’index." Reliability Engineering & System Safety (2016).
 
     TODO before publishing, make sure this is just cloned from his site
     '''
@@ -959,13 +1020,12 @@ def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
     # Get input factor search space
     df_search, df_hnwc = generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc)
     factor_labs = df_search .columns.to_list()
-    print('Nonuniform Number of Samples: ', len(df_search ))
+    print('Nonuniform Number of Samples: ', len(df_search))
 
     for index, row in df_operation.iterrows():
         # Apply Coefficients to Exogenous Parameters
         df_exogenous = get_nonuniform_exogenous(
             df_search.copy(),
-            df_hnwc,
             row['Withdrawal Weight ($/Gallon)'],
             row['Consumption Weight ($/Gallon)'],
             row['Uniform Loading Factor'],
@@ -975,12 +1035,12 @@ def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
         )
 
         # Combine input factor grid and exogenous parameters
-        df_search_exogenous  = pd.concat([df_search, df_exogenous], axis=1)
+        df_search_exogenous = pd.concat([df_search, df_exogenous], axis=1)
 
         # Evaluate model
         ddf_search_exogenous = dd.from_pandas(df_search_exogenous, npartitions=n_tasks)
         df_results = ddf_search_exogenous.apply(
-            lambda row: water_OPF_wrapper(row[net.exogenous_labs], t, net),
+            lambda row: water_opf_wrapper(row[net.exogenous_labs], t, net),
             axis=1,
             meta=pd.DataFrame(columns=net.results_labs, dtype='float64')
         ).compute(scheduler='processes')
@@ -1047,9 +1107,25 @@ def nonuniform_sobol_viz(df_sobol, net):
     # Plot
     min_sobol = df_sobol['Sobol Index'].min()
     max_sobol = df_sobol['Sobol Index'].max()
-    g = sns.FacetGrid(df_sobol, col='Fuel/Cooling Type', row='Operational Scenario', sharex='col', sharey=True, aspect=1.0, height=1.7, margin_titles=True)
+    g = sns.FacetGrid(
+        df_sobol,
+        col='Fuel/Cooling Type',
+        row='Operational Scenario',
+        sharex='col',
+        sharey=True,
+        aspect=1.0,
+        height=1.7,
+        margin_titles=True
+    )
     cbar_ax = g.fig.add_axes([.87, .15, .03, .7])
-    g.map_dataframe(draw_heatmap, cmap='viridis', cbar_ax=cbar_ax, cbar_kws={'label': 'First Order Sobol Index Value'}, vmin=min_sobol, vmax=max_sobol)
+    g.map_dataframe(
+        draw_heatmap,
+        cmap='viridis',
+        cbar_ax=cbar_ax,
+        cbar_kws={'label': 'First Order Sobol Index Value'},
+        vmin=min_sobol,
+        vmax=max_sobol
+    )
     g.fig.subplots_adjust(left=0.28, right=0.75, top=0.85, bottom=0.12)
     for row in range(g.axes.shape[0]):
         for col in range(g.axes.shape[1]):
@@ -1110,5 +1186,3 @@ def get_system_information(net):
     df = df_info.merge(df_gens, left_index=True, right_on='Plant Name')
 
     return df
-
-

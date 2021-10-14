@@ -143,8 +143,8 @@ def main():
         if os.path.exists(inputs['path_to_eia']):
             df_eia = pd.read_hdf(inputs['path_to_eia'], 'df_eia')  # Load checkpoint
         else:
-            df_eia = src.import_EIA(inputs['path_to_eia_raw'])
-            print('Success: import_EIA')
+            df_eia = src.import_eia(inputs['path_to_eia_raw'])
+            print('Success: import_eia')
             df_eia.to_hdf(inputs['path_to_eia'], key='df_eia', mode='w')  # Save checkpoint
 
         net = pandapower.from_pickle(inputs['path_to_case_match'])  # Load previous checkpoint
