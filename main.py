@@ -180,14 +180,14 @@ def main():
         df_uniform = analysis.uniform_sa(net, inputs['n_tasks'], n_uniform_steps)
         df_uniform.to_csv(inputs['path_to_uniform_sa'], index=False)  # Save checkpoint
 
-    # Uniform SA Data Viz
+    # Uniform SA data visualization
     if not os.path.exists(os.path.join(inputs['path_to_figures'], 'effect_of_withdrawal_weight_line_flows.pdf')):
         net = pandapower.from_pickle(inputs['path_to_case_match_water_optimize'])  # Load previous checkpoint
         df_uniform = pd.read_csv(inputs['path_to_uniform_sa'])  # Load previous checkpoint
         # Convert to generator information dataframe
         df_gen_info = analysis.network_to_gen_info(net)
 
-        # Generator Visualization
+        # Generator visualization
         viz.effect_of_withdrawal_weight_on_withdrawal(
             df_uniform, net.uniform_input_factor_labs, net.objective_labs
         ).savefig(os.path.join(inputs['path_to_figures'], 'effect_of_withdrawal_weight_on_withdrawal.pdf'))
@@ -198,14 +198,14 @@ def main():
             os.path.join(inputs['path_to_figures'], 'effect_of_withdrawal_weight_plant_output.pdf')
         )
 
-        # Line Flow Visualization
+        # Line flow visualization
         net_diff, df_line_flows = analysis.get_line_flow_difference(net)
         df_line_flows.to_csv(os.path.join(inputs['path_to_tables'], 'line_flows.csv'), index=False)
         viz.effect_of_withdrawal_weight_line_flows(net_diff).savefig(
             os.path.join(inputs['path_to_figures'], 'effect_of_withdrawal_weight_line_flows.pdf')
         )
 
-    # Uniform SA Trees
+    # Uniform SA trees
     if not os.path.exists(os.path.join(inputs['path_to_figures'], 'decision_tree_total_cost.pdf')):
         net = pandapower.from_pickle(inputs['path_to_case_match_water_optimize'])  # Load previous checkpoint
         df_uniform = pd.read_csv(inputs['path_to_uniform_sa'])  # Load previous checkpoint
@@ -245,7 +245,7 @@ def main():
         df_nonuniform.to_csv(inputs['path_to_nonuniform_sa'], index=False)  # Save checkpoint
         df_nonuniform_sobol.to_csv(inputs['path_to_nonuniform_sa_sobol'], index=False)  # Save checkpoint
 
-    # Sobol Visualization
+    # Sobol visualization
     if not os.path.exists(os.path.join(inputs['path_to_figures'], 'nonuniform_sobol_heatmap.pdf')):
         net = pandapower.from_pickle(inputs['path_to_case_match_water_optimize'])  # Load previous checkpoint
         df_nonuniform_sobol = pd.read_csv(inputs['path_to_nonuniform_sa_sobol'])
@@ -254,14 +254,14 @@ def main():
             os.path.join(inputs['path_to_figures'], 'nonuniform_sobol_heatmap.pdf')
         )
 
-    # Historic Load Generation
+    # Historic load generation
     if not os.path.exists(os.path.join(inputs['path_to_figures'], 'historic_load_hist.pdf')):
         df_historic_loads = pd.read_csv(inputs['path_to_load'])
         viz.historic_load_hist(df_historic_loads).savefig(
             os.path.join(inputs['path_to_figures'], 'historic_load_hist.pdf')
         )
 
-    # System Information Table
+    # System information table
     if not os.path.exists(os.path.join(inputs['path_to_tables'], 'system_information.csv')):
         net = pandapower.from_pickle(inputs['path_to_case_match_water_optimize'])  # Load previous checkpoint
         df_gen_info = analysis.network_to_gen_info(net)
