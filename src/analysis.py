@@ -656,3 +656,166 @@ def fit_single_models(df, obj_labs, factor_labs):
         clf = tree.DecisionTreeRegressor(random_state=1008, max_depth=5, max_leaf_nodes=12)
         mods[i] = clf.fit(X=df[factor_labs], y=df[i])
     return mods
+
+
+def generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc):
+    # Set seed
+    rng = np.random.default_rng(1008)
+
+    # Add plant information
+    df_hnwc = df_gen_info[['Plant Name', '923 Cooling Type', 'MATPOWER Fuel']].merge(df_hnwc)
+    df_hnwc['Input Factor'] = df_hnwc['Plant Name'] + ' Non-Uniform Water Coefficient'
+
+    # Sampling
+    replace = True  # with replacement
+    n_inputs_factors = len(df_hnwc['Input Factor'].unique())
+    df_sample = df_hnwc.groupby('Input Factor', as_index=False).apply(
+        lambda obj: obj.loc[rng.choice(obj.index, n_sample, replace), :]
+    )
+    df_sample['Sample Index'] = np.tile(np.arange(0, n_sample), n_inputs_factors)
+    df_sample = df_sample.reset_index().pivot(columns='Input Factor', values='value', index='Sample Index')
+    return df_sample, df_hnwc
+
+
+def nonuniform_factor_multiply(ser_c_water, c_load, exogenous_labs, net, df_geninfo):
+    # Nonuniform coefficients
+    df_geninfo = df_geninfo.merge(ser_c_water, left_on=['Plant Name'], right_index=True, how='left')
+    df_geninfo.iloc[:, -1].fillna(0, inplace=True)  # Joined column will always be last
+
+    # Uniform coefficients
+    beta_load = net.load['p_mw'].values * c_load
+    beta_with = (df_geninfo['Median Withdrawal Rate (Gallon/kWh)'] * df_geninfo.iloc[:, -1]).values
+    beta_con = (df_geninfo['Median Consumption Rate (Gallon/kWh)'] * df_geninfo.iloc[:, -1]).values
+    vals = np.concatenate((beta_with, beta_con, beta_load))
+    idxs = exogenous_labs[2:]
+    return pd.Series(vals, index=idxs)
+
+
+def get_nonuniform_exogenous(df_sample, w_with, w_con, c_load, df_geninfo, net, exogenous_labs):
+    # Formatting
+    original_columns = df_sample.columns
+    df_sample.columns = [i.split(' Non-Uniform Water Coefficient')[:][0] for i in df_sample.columns]
+
+    # Multiply exogenous parameters
+    df_exogenous = df_sample.apply(
+        lambda row: nonuniform_factor_multiply(row, c_load, exogenous_labs, net, df_geninfo),
+        axis=1
+    )
+
+    # Storing
+    df_sample.columns = original_columns
+    df_sample['Withdrawal Weight ($/Gallon)'] = w_with
+    df_sample['Consumption Weight ($/Gallon)'] = w_con
+    df_sample['Uniform Loading Coefficient'] = c_load
+    df_exogenous = pd.concat([df_sample, df_exogenous], axis=1)
+    return df_exogenous
+
+
+def MGSA_FirstOrder(Input, Output, ndomain):
+    '''
+    input: nsample * nd matrix, where nsample is the number of sample, and nd
+    is the input dimension
+    output: nsample * 1 array
+    ndomain: number of sub-domain the to divide a single input
+    This algorithm is proposed by me. Please cite the following paper if you use this code.
+    Li, Chenzhao, and Sankaran Mahadevan. "An efficient modularized sample-based method to
+    estimate the first-order Sobol’index." Reliability Engineering & System Safety (2016).
+
+    TODO before publishing, make sure this is just cloned from his site
+    '''
+    (nsample, nd) = np.shape(Input);
+
+    # convert the input samples into cdf domains
+    U = np.linspace(0.0, 1.0, num=ndomain + 1)
+    cdf_input = np.zeros((nsample, nd))
+    cdf_values = np.linspace(1.0 / nsample, 1.0, nsample)
+
+    j = 1
+    for i in range(nd):
+        IX = np.argsort(Input[:, i])
+        IX2 = np.argsort(IX)
+        cdf_input[:, i] = cdf_values[IX2]
+
+    # compute the first-order indices
+    VY = np.var(Output, ddof=1)
+    VarY_local = np.zeros((ndomain, nd))
+    for i in range(nd):
+        cdf_input_i = cdf_input[:, i]
+        output_i = Output
+        U_i = U
+        for j in range(ndomain):
+            sub = cdf_input_i < U_i[j + 1]
+            VarY_local[j, i] = np.var(output_i[sub], ddof=1)
+            inverse_sub = ~sub
+            cdf_input_i = cdf_input_i[inverse_sub]
+            output_i = output_i[inverse_sub]
+
+    index = 1.0 - np.mean(VarY_local, axis=0) / VY
+
+    return index
+
+
+def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
+    # Initialize local vars
+    t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
+    results_ls = []
+    sobol_ls = []
+
+    # Convert generator information dataframe (this makes the processing easier)
+    df_gen_info = network_to_gen_info(net)
+
+    # Get input factor search space
+    df_search, df_hnwc = generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc)
+    factor_labs = df_search .columns.to_list()
+    print('Nonuniform Number of Samples: ', len(df_search))
+
+    for index, row in df_operation.iterrows():
+        # Apply Coefficients to Exogenous Parameters
+        df_exogenous = get_nonuniform_exogenous(
+            df_search.copy(),
+            row['Withdrawal Weight ($/Gallon)'],
+            row['Consumption Weight ($/Gallon)'],
+            row['Uniform Loading Factor'],
+            df_gen_info,
+            net,
+            net.exogenous_labs
+        )
+        print('Success: Nonuniform SA, Multiply exogenous')
+
+        # Combine input factor grid and exogenous parameters
+        df_search_exogenous = pd.concat([df_search, df_exogenous], axis=1)
+
+        # Evaluate model
+        ddf_search_exogenous = dd.from_pandas(df_search_exogenous, npartitions=n_tasks)
+        print('Success: Nonuniform SA, Dask Conversion')
+        df_results = ddf_search_exogenous.apply(
+            lambda row_loc: water_opf_wrapper(row_loc[net.exogenous_labs], t, net),
+            axis=1,
+            meta=pd.DataFrame(columns=net.results_labs, dtype='float64')
+        ).compute(scheduler='processes')
+        df_nonuniform_scenario = pd.concat([df_exogenous, df_results], axis=1)
+        df_nonuniform_scenario = df_nonuniform_scenario.dropna()
+        df_nonuniform_scenario = df_nonuniform_scenario.drop_duplicates()  # Sometimes dask duplicates rows
+        print('Success: ' + row['Operational Scenario'] + ' Model Run Complete')
+
+        # Calculate sobol
+        df_sobol_scenario = pd.DataFrame()
+        for i in net.objective_labs:
+            ndomain = int(np.sqrt(n_sample))
+            si_vals = MGSA_FirstOrder(Input=df_nonuniform_scenario[factor_labs].values,
+                                      Output=df_nonuniform_scenario[i].values,
+                                      ndomain=ndomain)
+            df_sobol_scenario = df_sobol_scenario.append(pd.Series(si_vals, index=factor_labs).rename(i))
+        print('Success: ' + row['Operational Scenario'] + ' Sobol Analysis')
+
+        # Storage
+        df_nonuniform_scenario['Operational Scenario'] = row['Operational Scenario']
+        df_sobol_scenario['Operational Scenario'] = row['Operational Scenario']
+        sobol_ls.append(df_sobol_scenario.rename_axis('Objective').reset_index())
+        results_ls.append(df_nonuniform_scenario)
+
+    # Creating main dataframes
+    df_nonuniform = pd.concat(results_ls, ignore_index=True)
+    df_nonuniform_sobol = pd.concat(sobol_ls, ignore_index=True)
+
+    return df_nonuniform, df_nonuniform_sobol

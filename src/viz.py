@@ -1,6 +1,7 @@
 import os
 
-#import pandapower.plotting as ppp
+import numpy as np
+import pandapower.plotting as ppp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -225,6 +226,116 @@ def decision_tree(mods, obj_lab, df, uniform_factor_labs):
         svg_fig = svg2rlg('temp.svg')
         os.remove('temp.svg')
         os.remove('temp')
+        return svg_fig
     except AttributeError:
         print('AttributeError: Cannot use both `dtreeviz` and `pandapower.plotting`')
-    return svg_fig
+        return 1
+
+
+def draw_heatmap(**kwargs):
+    data = kwargs.pop('data')
+    data = data.pivot(columns='Plant Name', index='Objective', values='Sobol Index')
+    return sns.heatmap(data, **kwargs)
+
+
+def nonuniform_sobol_heatmap(df_sobol, df_gen_info):
+    # Local variables
+    input_factor_labs = df_sobol.filter(like='Non-Uniform Water Coefficient').columns
+
+    # Filter
+    invalid_index = (df_sobol['Operational Scenario'].str.contains('OPF')) & \
+                    (df_sobol['Objective'].str.contains('Cost'))  # Objectives that have no impact
+    df_sobol.loc[invalid_index, input_factor_labs] = np.nan
+    df_sobol._get_numeric_data()[df_sobol._get_numeric_data() < 0] = 0  # Due to numeric estimation
+
+    # Get plant information
+    df_sobol = df_sobol.melt(
+        id_vars=['Objective', 'Operational Scenario'],
+        value_vars=input_factor_labs,
+        var_name='Input Factor',
+        value_name='Sobol Index'
+    )
+    df_sobol['Plant Name'] = df_sobol['Input Factor'].str.split(' Non-Uniform Water Coefficient', expand=True)[0]
+    df_plant_info = df_gen_info.groupby('Plant Name').first().reset_index()
+    df_plant_info['Fuel/Cooling Type'] = df_plant_info['MATPOWER Fuel'] + '/' + df_plant_info['923 Cooling Type']
+    df_sobol = df_sobol.merge(df_plant_info[['Plant Name', 'Fuel/Cooling Type']])
+    df_sobol = df_sobol.sort_values('Fuel/Cooling Type')
+
+    # Plot
+    min_sobol = df_sobol['Sobol Index'].min()
+    max_sobol = df_sobol['Sobol Index'].max()
+    g = sns.FacetGrid(
+        df_sobol,
+        col='Fuel/Cooling Type',
+        row='Operational Scenario',
+        sharex='col',
+        sharey=True,
+        aspect=1.0,
+        height=1.7,
+        margin_titles=True
+    )
+    cbar_ax = g.fig.add_axes([.87, .15, .03, .7])
+    g.map_dataframe(
+        draw_heatmap,
+        cmap='viridis',
+        cbar_ax=cbar_ax,
+        cbar_kws={'label': 'First Order Sobol Index Value'},
+        vmin=min_sobol,
+        vmax=max_sobol
+    )
+    g.fig.subplots_adjust(left=0.28, right=0.75, top=0.85, bottom=0.12)
+    for row in range(g.axes.shape[0]):
+        for col in range(g.axes.shape[1]):
+            if row == 0:
+                g.axes[row, col].set_title(df_sobol['Fuel/Cooling Type'].unique()[col], rotation=90)
+            else:
+                g.axes[row, col].set_title('')
+
+            if col == g.axes.shape[1] - 1:
+                txt = df_sobol['Operational Scenario'].unique()[row].replace(' ', '\n')
+                g.axes[row, col].texts[0].set_text(txt)
+                g.axes[row, col].texts[0].set(multialignment='center', x=1.8, ha='center', rotation='horizontal')
+
+    g.set_xticklabels(rotation=90)
+    g.set_xlabels('')
+    g.set_ylabels('')
+
+    # Display plot
+    plt.show()
+
+    return g
+
+
+def historic_load_hist(df):
+    # Formatting
+    df = df.rename({'ActualLoad': 'Actual Load (MW)'}, axis='columns')
+    df['Uniform Loading Coefficient'] = df['Actual Load (MW)'] / df['Actual Load (MW)'].median()
+
+    # Plot
+    fig, ax1 = plt.subplots()
+    ax2 = ax1.twiny()
+    sns.histplot(data=df, x='Actual Load (MW)', ax=ax1)
+    sns.histplot(data=df, x='Uniform Loading Coefficient', ax=ax2)
+    plt.tight_layout()
+    plt.show()
+    return fig
+
+
+def system_information(df_gen_info):
+    # Generator aggregation
+    df_gens = df_gen_info.groupby('Plant Name')['MATPOWER Index'].apply(set).reset_index(name='Generators')
+    df_gens['Generators'] = df_gens.apply(
+        lambda row: ', '.join([str(element) for element in row['Generators']]),
+        axis=1
+    )
+
+    df_capacity = df_gen_info.groupby('Plant Name').sum()
+
+    # Remaining information
+    df_info = df_gen_info.groupby('Plant Name').first().drop('MATPOWER Capacity (MW)', axis='columns')
+
+    # Merging
+    df_info = df_info.join(df_capacity['MATPOWER Capacity (MW)'])
+    df = df_info.merge(df_gens, left_index=True, right_on='Plant Name')
+
+    return df
