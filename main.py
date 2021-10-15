@@ -9,7 +9,6 @@ import pandas as pd
 from reportlab.graphics import renderPDF
 
 sys.path.insert(0, 'src')
-#import src  # noqa: E402
 import analysis  # noqa: E402
 import viz  # noqa: E402
 
