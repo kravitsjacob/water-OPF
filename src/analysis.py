@@ -115,7 +115,6 @@ def get_cooling_system(df_eia, df_gen_info):
 
 
 def get_regional(df):
-
     # Convert Units
     df['Withdrawal Rate (Gallon/kWh)'] = \
         df['Water Withdrawal Volume (Million Gallons)'].astype('float64') \
@@ -279,7 +278,6 @@ def get_historic_nonuniform_water_coefficients(df_region):
 
 
 def cooling_system_information(net, df_eia):
-
     # Convert generator information dataframe (this makes the processing easier)
     df_gen_info = network_to_gen_info(net)
 
