@@ -182,7 +182,7 @@ def main():
         df_uniform.to_csv(inputs['path_to_uniform_sa'], index=False)  # Save checkpoint
 
     # Uniform SA Data Viz
-    if not os.path.exists(os.path.join(inputs['path_to_figures'], 'Effect of Withdrawal Weight on Line Flows.pdf')):
+    if not os.path.exists(os.path.join(inputs['path_to_figures'], 'effect_of_withdrawal_weight_line_flows.pdf')):
         net = pandapower.from_pickle(inputs['path_to_case_match_water_optimize'])  # Load previous checkpoint
         df_uniform = pd.read_csv(inputs['path_to_uniform_sa'])  # Load previous checkpoint
         # Convert to generator information dataframe
@@ -205,26 +205,36 @@ def main():
         viz.effect_of_withdrawal_weight_line_flows(net_diff).savefig(
             os.path.join(inputs['path_to_figures'], 'effect_of_withdrawal_weight_line_flows.pdf')
         )
-        return 0
 
     # Uniform SA Trees
-    if not os.path.exists(os.path.join(inputs['path_to_figures'], 'Total Cost (Dollar) Tree.pdf')):
+    if not os.path.exists(os.path.join(inputs['path_to_figures'], 'decision_tree_total_cost.pdf')):
         net = pandapower.from_pickle(inputs['path_to_case_match_water_optimize'])  # Load previous checkpoint
         df_uniform = pd.read_csv(inputs['path_to_uniform_sa'])  # Load previous checkpoint
-        drawing_ls = src.uniform_sa_tree(df_uniform, net)
-        if len(drawing_ls) == 4:
+
+        # Fit trees
+        mods = analysis.fit_single_models(df_uniform, net.objective_labs, net.uniform_input_factor_labs)
+
+        # Visualize trees
+        try:
             renderPDF.drawToFile(
-                drawing_ls[0], os.path.join(inputs['path_to_figures'], 'Total Cost (Dollar) Tree.pdf')
+                viz.decision_tree(mods, 'Total Cost ($)', df_uniform, net.uniform_input_factor_labs),
+                os.path.join(inputs['path_to_figures'], 'decision_tree_total_cost.pdf')
             )
             renderPDF.drawToFile(
-                drawing_ls[1], os.path.join(inputs['path_to_figures'], 'Generator Cost (Dollar) Tree.pdf')
+                viz.decision_tree(mods, 'Generator Cost ($)', df_uniform, net.uniform_input_factor_labs),
+                os.path.join(inputs['path_to_figures'], 'decision_tree_generator_cost.pdf')
             )
             renderPDF.drawToFile(
-                drawing_ls[2], os.path.join(inputs['path_to_figures'], 'Water Withdrawal (Gallon) Tree.pdf')
+                viz.decision_tree(mods, 'Water Withdrawal (Gallon)', df_uniform, net.uniform_input_factor_labs),
+                os.path.join(inputs['path_to_figures'], 'decision_tree_withdrawal.pdf')
             )
             renderPDF.drawToFile(
-                drawing_ls[3], os.path.join(inputs['path_to_figures'], 'Water Consumption (Gallon) Tree.pdf')
+                viz.decision_tree(mods, 'Water Consumption (Gallon)', df_uniform, net.uniform_input_factor_labs),
+                os.path.join(inputs['path_to_figures'], 'decision_tree_consumption.pdf')
             )
+        except UnboundLocalError:
+            print('UnboundLocalError: Cannot use both `dtreeviz` and `pandapower.plotting`')
+
 
     # Nonuniform SA
     if not os.path.exists(inputs['path_to_nonuniform_sa_sobol']):
