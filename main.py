@@ -241,30 +241,33 @@ def main():
         net = pandapower.from_pickle(inputs['path_to_case_match_water_optimize'])  # Load previous checkpoint
         df_hnwc = pd.read_csv(inputs['path_to_hnwc'])  # Load previous checkpoint
         df_operation = pd.read_csv(inputs['path_to_operational_scenarios'])
-        df_nonuniform, df_nonuniform_sobol = src.nonuniform_sa(
+        df_nonuniform, df_nonuniform_sobol = analysis.nonuniform_sa(
             df_hnwc, df_operation, inputs['n_tasks'], n_nonuniform_samples, net
         )
         df_nonuniform.to_csv(inputs['path_to_nonuniform_sa'], index=False)  # Save checkpoint
         df_nonuniform_sobol.to_csv(inputs['path_to_nonuniform_sa_sobol'], index=False)  # Save checkpoint
 
     # Sobol Visualization
-    if not os.path.exists(os.path.join(inputs['path_to_figures'], 'First Order Heatmap.pdf')):
+    if not os.path.exists(os.path.join(inputs['path_to_figures'], 'nonuniform_sobol_heatmap.pdf')):
         net = pandapower.from_pickle(inputs['path_to_case_match_water_optimize'])  # Load previous checkpoint
         df_nonuniform_sobol = pd.read_csv(inputs['path_to_nonuniform_sa_sobol'])
-        nonuniform_sobol_fig = src.nonuniform_sobol_viz(df_nonuniform_sobol, net)
-        nonuniform_sobol_fig.fig.savefig(os.path.join(inputs['path_to_figures'], 'First Order Heatmap.pdf'))
+        df_gen_info = analysis.network_to_gen_info(net)
+        viz.nonuniform_sobol_heatmap(df_nonuniform_sobol, df_gen_info).fig.savefig(
+            os.path.join(inputs['path_to_figures'], 'nonuniform_sobol_heatmap.pdf')
+        )
 
     # Historic Load Generation
-    if not os.path.exists(os.path.join(inputs['path_to_figures'], 'Load Distribution.pdf')):
+    if not os.path.exists(os.path.join(inputs['path_to_figures'], 'historic_load_hist.pdf')):
         df_historic_loads = pd.read_csv(inputs['path_to_load'])
-        src.historic_load_viz(df_historic_loads).savefig(
-            os.path.join(inputs['path_to_figures'], 'Load Distribution.pdf')
+        viz.historic_load_hist(df_historic_loads).savefig(
+            os.path.join(inputs['path_to_figures'], 'historic_load_hist.pdf')
         )
 
     # System Information Table
     if not os.path.exists(os.path.join(inputs['path_to_tables'], 'system_information.csv')):
         net = pandapower.from_pickle(inputs['path_to_case_match_water_optimize'])  # Load previous checkpoint
-        df_system = src.get_system_information(net)
+        df_gen_info = analysis.network_to_gen_info(net)
+        df_system = viz.system_information(df_gen_info)
         df_system.to_csv(os.path.join(inputs['path_to_tables'], 'system_information.csv'), index=False)
 
     return 0
