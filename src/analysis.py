@@ -9,6 +9,7 @@ import dask.dataframe as dd
 import pandapower as pp
 from sklearn import tree
 
+
 def network_to_gen_info(net):
     # Initialize local vars
     gen_types = ['gen', 'sgen', 'ext_grid']
