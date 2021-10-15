@@ -247,7 +247,10 @@ def nonuniform_sobol_heatmap(df_sobol, df_gen_info):
     invalid_index = (df_sobol['Operational Scenario'].str.contains('OPF')) & \
                     (df_sobol['Objective'].str.contains('Cost'))  # Objectives that have no impact
     df_sobol.loc[invalid_index, input_factor_labs] = np.nan
-    df_sobol._get_numeric_data()[df_sobol._get_numeric_data() < 0] = 0  # Due to numeric estimation
+    numeric_cols = df_sobol.select_dtypes(include=np.number).columns
+    df_sobol[numeric_cols] = np.where(
+        df_sobol[numeric_cols] < 0.0, 0.0, df_sobol[numeric_cols]
+    )  # Due to numeric estimation
 
     # Get plant information
     df_sobol = df_sobol.melt(
