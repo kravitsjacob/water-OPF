@@ -9,7 +9,9 @@ import pandas as pd
 from reportlab.graphics import renderPDF
 
 sys.path.insert(0, 'src')
-import src  # noqa: E402
+#import src  # noqa: E402
+import analysis  # noqa: E402
+import viz  # noqa: E402
 
 
 def input_parse():
@@ -125,7 +127,7 @@ def main():
     if not os.path.exists(inputs['path_to_case']):
         net = pandapower.converter.from_mpc(inputs['path_to_matpowercase'])
         df_gen_info = pd.read_csv(inputs['path_to_geninfo'])
-        net = src.grid_setup(net, df_gen_info)
+        net = analysis.grid_setup(net, df_gen_info)
         print('Success: grid_setup')
         pandapower.to_pickle(net, inputs['path_to_case'])  # Save checkpoint
 
@@ -133,7 +135,7 @@ def main():
     if not os.path.exists(inputs['path_to_case_match']):
         net = pandapower.from_pickle(inputs['path_to_case'])  # Load previous checkpoint
         df_gen_matches = pd.read_csv(inputs['path_to_gen_matches'])
-        net = src.generator_match(net, df_gen_matches)
+        net = analysis.generator_match(net, df_gen_matches)
         print('Success: generator_match')
         pandapower.to_pickle(net, inputs['path_to_case_match'])  # Save checkpoint
 
@@ -143,24 +145,29 @@ def main():
         if os.path.exists(inputs['path_to_eia']):
             df_eia = pd.read_hdf(inputs['path_to_eia'], 'df_eia')  # Load checkpoint
         else:
-            df_eia = src.import_eia(inputs['path_to_eia_raw'])
+            df_eia = analysis.import_eia(inputs['path_to_eia_raw'])
             print('Success: import_eia')
             df_eia.to_hdf(inputs['path_to_eia'], key='df_eia', mode='w')  # Save checkpoint
 
         net = pandapower.from_pickle(inputs['path_to_case_match'])  # Load previous checkpoint
-        net, df_hnwc, fig_region_distributution_plotter, fig_region_box_plotter, fig_coal_plotter, fig_hnwc_plotter = \
-            src.cooling_system_information(net, df_eia)
+        net, df_hnwc, df_region, df_gen_info = analysis.cooling_system_information(net, df_eia)
         print('Success: cooling_system_information')
-        fig_region_distributution_plotter.savefig(
-            os.path.join(inputs['path_to_figures'], 'uniform water coefficient distribution.pdf')
-        )
-        fig_region_box_plotter.savefig(os.path.join(inputs['path_to_figures'], 'region water boxplots.pdf'))
-        fig_coal_plotter.savefig(os.path.join(inputs['path_to_figures'], 'coal scatter kmeans.pdf'))
-        fig_hnwc_plotter.savefig(
-            os.path.join(inputs['path_to_figures'], 'historic nonuniform water coefficient histograms.pdf')
-        )
         pandapower.to_pickle(net, inputs['path_to_case_match_water'])  # Save checkpoint
         df_hnwc.to_csv(inputs['path_to_hnwc'], index=False)  # Save checkpoint
+
+        # Plotting
+        viz.uniform_water_coefficient_distribution(df_region).figure.savefig(
+            os.path.join(inputs['path_to_figures'], 'uniform_water_coefficient_distribution.pdf')
+        )
+        viz.region_water_boxplots(df_region).fig.savefig(
+            os.path.join(inputs['path_to_figures'], 'region_water_boxplots.pdf')
+        )
+        viz.coal_scatter_kmeans(df_region).fig.savefig(
+            os.path.join(inputs['path_to_figures'], 'coal_scatter_kmeans.pdf')
+        )
+        viz.hnwc_histograms(df_hnwc, df_gen_info).fig.savefig(
+            os.path.join(inputs['path_to_figures'], 'hnwc_histograms.pdf')
+        )
 
     # Prepare network for optimization
     if not os.path.exists(inputs['path_to_case_match_water_optimize']):
