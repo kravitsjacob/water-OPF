@@ -36,7 +36,6 @@ def add_gen_info_to_network(df_gen_info, net):
 
 
 def grid_setup(net, df_gen_info):
-
     # Initialize local vars
     gen_types = ['gen', 'sgen', 'ext_grid']
 
@@ -115,7 +114,7 @@ def get_cooling_system(df_eia, df_gen_info):
 
 
 def get_regional(df):
-    # Convert Units
+    # Convert units
     df['Withdrawal Rate (Gallon/kWh)'] = \
         df['Water Withdrawal Volume (Million Gallons)'].astype('float64') \
         / df['Gross Generation from Steam Turbines (MWh)'].astype('float64') * 1000  # Convert to Gallon/kWh
@@ -123,7 +122,7 @@ def get_regional(df):
         df['Water Consumption Volume (Million Gallons)'].astype('float64') /\
         df['Gross Generation from Steam Turbines (MWh)'].astype('float64') * 1000  # Convert to Gallon/kWh
 
-    # Substitute Simple Fuel Types
+    # Substitute simple fuel types
     df['Fuel Type'] = df['Generator Primary Technology'].replace(
         {'Nuclear': 'nuclear',
          'Natural Gas Steam Turbine': 'ng',
@@ -132,7 +131,7 @@ def get_regional(df):
          'Petroleum Liquids': np.nan})
     df = df[df['Fuel Type'].notna()]
 
-    # Filter to only Illinois Plants
+    # Filter to only Illinois plants
     df = df[df['State'].isin(['IL'])]
 
     # Filter to only cooling systems in synthetic region (Hardcoded)
@@ -326,7 +325,7 @@ def optimization_information(net):
     power_labs = []
 
     for gen_type in gen_types:
-        # Storing Pandapower information
+        # Storing pandapower information
         getattr(net, gen_type)['PANDAPOWER Index'] = getattr(net, gen_type).index.tolist()
         getattr(net, gen_type)['PANDAPOWER Type'] = gen_type
 
@@ -380,7 +379,7 @@ def uniform_input_factor_multiply(c_water, c_load, beta_with, beta_con, beta_loa
 
 
 def get_uniform_search(df_gridspecs):
-    # Set Search Values
+    # Set search values
     w_with_vals = np.linspace(df_gridspecs['Min']['Withdrawal Weight ($/Gallon)'],
                               df_gridspecs['Max']['Withdrawal Weight ($/Gallon)'],
                               df_gridspecs['Number of Steps']['Withdrawal Weight ($/Gallon)'])
@@ -394,7 +393,7 @@ def get_uniform_search(df_gridspecs):
                                df_gridspecs['Max']['Uniform Water Coefficient'],
                                df_gridspecs['Number of Steps']['Uniform Water Coefficient'])
 
-    # Create Grid
+    # Create grid
     df_search = pd.DataFrame(
         list(itertools.product(w_with_vals, w_con_vals, c_load_vals, c_water_vals)), columns=df_gridspecs.index
     )
@@ -403,16 +402,16 @@ def get_uniform_search(df_gridspecs):
 
 
 def water_opf(ser_exogenous, net, t):
-    # Create DataFrame of loads
+    # Create dataFrame of loads
     df_load = ser_exogenous[ser_exogenous.index.str.contains('Load')].to_frame('Load (MW)')
     df_load['bus'] = df_load.index.str.extract(r'(\d+)').astype(int).values
     df_load.reset_index(inplace=True, drop=True)
 
-    # Assign Loads
+    # Assign loads
     net.load = net.load.merge(df_load)
     net.load['p_mw'] = net.load['Load (MW)']
 
-    # Create DataFrame of withdrawal and consumption values
+    # Create dataframe of withdrawal and consumption values
     df_withdrawal = \
         ser_exogenous[ser_exogenous.index.str.contains('Withdrawal Rate')].to_frame('Withdrawal Rate (Gallon/kWh)')
     df_withdrawal['MATPOWER Index'] = df_withdrawal.index.str.extract(r'(\d+)').astype(int).values
@@ -421,7 +420,7 @@ def water_opf(ser_exogenous, net, t):
     # Assign withdrawal terms
     net.poly_cost = net.poly_cost.merge(df_withdrawal)
 
-    # Create DataFrame of consumption values
+    # Create dataframe of consumption values
     df_consumption = \
         ser_exogenous[ser_exogenous.index.str.contains('Consumption Rate')].to_frame('Consumption Rate (Gallon/kWh)')
     df_consumption['MATPOWER Index'] = df_consumption.index.str.extract(r'(\d+)').astype(int).values
@@ -501,7 +500,7 @@ def water_opf_wrapper(ser_exogenous, t, net, output_type='numeric'):
             ser_exogenous['Withdrawal Weight ($/Gallon)'] * with_obj + \
             ser_exogenous['Consumption Weight ($/Gallon)'] * con_obj
 
-        # Formatting Export
+        # Formatting export
         vals = [cos_obj, gen_obj, with_obj, con_obj] + generator_output + line_loadings
         ser_results = pd.Series(vals, index=net.results_labs)
 
@@ -583,7 +582,7 @@ def get_plant_output_ratio(df, df_gen_info, uniform_factor_labs, obj_labs):
     df_plant_capacity_ratio = df_plant_capacity_ratio.transpose()
     df_plant_capacity_ratio = df_plant_capacity_ratio.join(df[uniform_factor_labs+obj_labs])
 
-    # Get Cooling System Type
+    # Get cooling system type
     df_plant_capacity_ratio = pd.melt(
         df_plant_capacity_ratio,
         value_vars=plant_names,
@@ -598,7 +597,7 @@ def get_plant_output_ratio(df, df_gen_info, uniform_factor_labs, obj_labs):
 
 
 def get_line_flow_difference(net):
-    # Preparing information (could go in optimization_information later)
+    # Preparing information
     net = copy.deepcopy(net)
     net.line['name'] = net.line['from_bus'].astype(str) + ' - ' + net.line['to_bus'].astype(str)
     net.trafo['name'] = net.trafo['hv_bus'].astype(str) + ' - ' + net.trafo['lv_bus'].astype(str)
@@ -769,7 +768,7 @@ def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
     print('Nonuniform Number of Samples: ', len(df_search))
 
     for index, row in df_operation.iterrows():
-        # Apply Coefficients to Exogenous Parameters
+        # Apply coefficients to exogenous parameters
         df_exogenous = get_nonuniform_exogenous(
             df_search.copy(),
             row['Withdrawal Weight ($/Gallon)'],

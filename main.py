@@ -83,13 +83,13 @@ def input_parse():
     path_to_nonuniform_sa = os.path.join(path_to_data, config_inputs['CHECKPOINTS']['nonuniform_sa'])
     path_to_nonuniform_sa_sobol = os.path.join(path_to_data, config_inputs['CHECKPOINTS']['nonuniform_sa_sobol'])
 
-    # Parallel Information
+    # Parallel information
     n_tasks = os.cpu_count()
     if argparse_inputs.n_tasks:  # Command line gets priority
         n_tasks = argparse_inputs.n_tasks
         print(f'Command line inputs get priority over config file {n_tasks=}')
 
-    # Store Inputs
+    # Store inputs
     inputs = {
         'path_to_gen_matches': path_to_gen_matches,
         'path_to_operational_scenarios': path_to_operational_scenarios,
