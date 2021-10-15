@@ -172,24 +172,40 @@ def main():
     # Prepare network for optimization
     if not os.path.exists(inputs['path_to_case_match_water_optimize']):
         net = pandapower.from_pickle(inputs['path_to_case_match_water'])  # Load previous checkpoint
-        net = src.optimization_information(net)
+        net = analysis.optimization_information(net)
         pandapower.to_pickle(net, inputs['path_to_case_match_water_optimize'])
 
     # Uniform SA
     if not os.path.exists(inputs['path_to_uniform_sa']):
         net = pandapower.from_pickle(inputs['path_to_case_match_water_optimize'])  # Load previous checkpoint
-        df_uniform = src.uniform_sa(net, inputs['n_tasks'], n_uniform_steps)
+        df_uniform = analysis.uniform_sa(net, inputs['n_tasks'], n_uniform_steps)
         df_uniform.to_csv(inputs['path_to_uniform_sa'], index=False)  # Save checkpoint
 
     # Uniform SA Data Viz
     if not os.path.exists(os.path.join(inputs['path_to_figures'], 'Effect of Withdrawal Weight on Line Flows.pdf')):
         net = pandapower.from_pickle(inputs['path_to_case_match_water_optimize'])  # Load previous checkpoint
         df_uniform = pd.read_csv(inputs['path_to_uniform_sa'])  # Load previous checkpoint
-        fig_a, fig_b, df_line_flows, fig_c = src.uniform_sa_dataviz(df_uniform, net)
-        fig_a.savefig(os.path.join(inputs['path_to_figures'], 'Effect of Withdrawal Weight on Withdrawal.pdf'))
-        fig_b.fig.savefig(os.path.join(inputs['path_to_figures'], 'Effect of Withdrawal Weight on Plant Output.pdf'))
+        # Convert to generator information dataframe
+        df_gen_info = analysis.network_to_gen_info(net)
+
+        # Generator Visualization
+        viz.effect_of_withdrawal_weight_on_withdrawal(
+            df_uniform, net.uniform_input_factor_labs, net.objective_labs
+        ).savefig(os.path.join(inputs['path_to_figures'], 'effect_of_withdrawal_weight_on_withdrawal.pdf'))
+        df_plant_capacity_ratio = analysis.get_plant_output_ratio(
+            df_uniform, df_gen_info, net.uniform_input_factor_labs, net.objective_labs
+        )
+        viz.effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio).fig.savefig(
+            os.path.join(inputs['path_to_figures'], 'effect_of_withdrawal_weight_plant_output.pdf')
+        )
+
+        # Line Flow Visualization
+        net_diff, df_line_flows = analysis.get_line_flow_difference(net)
         df_line_flows.to_csv(os.path.join(inputs['path_to_tables'], 'line_flows.csv'), index=False)
-        fig_c.savefig(os.path.join(inputs['path_to_figures'], 'Effect of Withdrawal Weight on Line Flows.pdf'))
+        viz.effect_of_withdrawal_weight_line_flows(net_diff).savefig(
+            os.path.join(inputs['path_to_figures'], 'effect_of_withdrawal_weight_line_flows.pdf')
+        )
+        return 0
 
     # Uniform SA Trees
     if not os.path.exists(os.path.join(inputs['path_to_figures'], 'Total Cost (Dollar) Tree.pdf')):
