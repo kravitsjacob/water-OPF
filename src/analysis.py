@@ -7,6 +7,7 @@ import numpy as np
 from sklearn.cluster import KMeans
 import dask.dataframe as dd
 import pandapower as pp
+from sklearn import tree
 
 def network_to_gen_info(net):
     # Initialize local vars
@@ -647,3 +648,11 @@ def get_line_flow_difference(net):
     df_line_flows = df_line_flows.sort_values('Change in Loading (Percent)')
 
     return net_diff, df_line_flows
+
+
+def fit_single_models(df, obj_labs, factor_labs):
+    mods = {}
+    for i in obj_labs:
+        clf = tree.DecisionTreeRegressor(random_state=1008, max_depth=5, max_leaf_nodes=12)
+        mods[i] = clf.fit(X=df[factor_labs], y=df[i])
+    return mods

@@ -1,7 +1,11 @@
-import pandapower.plotting as ppp
+import os
+
+#import pandapower.plotting as ppp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import seaborn as sns
+from svglib.svglib import svg2rlg
+import dtreeviz.trees as dtviz  # Requires pip version, conflicts with pandapower.plotting
 sns.set()
 
 
@@ -205,16 +209,22 @@ def effect_of_withdrawal_weight_line_flows(net_diff):
     return fig
 
 
-def uniform_sa_dataviz(df, net):
-    # Convert to generator information dataframe
-    df_gen_info = network_to_gen_info(net)
-
-    # Generator Visualization
-    fig_a = viz_effect_of_withdrawal_weight_on_withdrawal(df, net.uniform_input_factor_labs, net.objective_labs)
-    df_plant_capacity_ratio = get_plant_output_ratio(df, df_gen_info, net.uniform_input_factor_labs, net.objective_labs)
-    fig_b = viz_effect_of_withdrawal_weight_plant_output(df_plant_capacity_ratio)
-
-    # Line Flow Visualization
-    df_line_flows, fig_c = effect_of_withdrawal_weight_line_flows(net)
-
-    return fig_a, fig_b, df_line_flows, fig_c
+def decision_tree(mods, obj_lab, df, uniform_factor_labs):
+    try:
+        viz = dtviz.dtreeviz(
+            mods[obj_lab],
+            df[uniform_factor_labs],
+            df[obj_lab],
+            target_name=obj_lab,
+            feature_names=uniform_factor_labs,
+            orientation='LR',
+            precision=0
+        )
+        viz.save('temp.svg')
+        print(f'Success: Tree created for {obj_lab}')
+        svg_fig = svg2rlg('temp.svg')
+        os.remove('temp.svg')
+        os.remove('temp')
+    except AttributeError:
+        print('AttributeError: Cannot use both `dtreeviz` and `pandapower.plotting`')
+    return svg_fig
