@@ -6,7 +6,6 @@ import matplotlib.cm
 import matplotlib.colors
 import matplotlib.pyplot as plt
 import seaborn as sns
-from svglib.svglib import svg2rlg
 import dtreeviz.trees as dtviz  # Requires pip version, conflicts with pandapower.plotting
 sns.set()
 
@@ -222,12 +221,7 @@ def decision_tree(mods, obj_lab, df, uniform_factor_labs):
             orientation='LR',
             precision=0
         )
-        viz.save('temp.svg')
-        print(f'Success: Tree created for {obj_lab}')
-        svg_fig = svg2rlg('temp.svg')
-        os.remove('temp.svg')
-        os.remove('temp')
-        return svg_fig
+        return viz
     except AttributeError:
         print('AttributeError: Cannot use both `dtreeviz` and `pandapower.plotting`')
         return 1

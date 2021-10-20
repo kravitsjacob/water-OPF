@@ -6,7 +6,6 @@ import argparse
 
 import pandapower.converter
 import pandas as pd
-from reportlab.graphics import renderPDF
 
 sys.path.insert(0, 'src')
 import analysis  # noqa: E402
@@ -206,7 +205,7 @@ def main():
         )
 
     # Uniform SA trees
-    if not os.path.exists(os.path.join(inputs['path_to_figures'], 'decision_tree_total_cost.pdf')):
+    if not os.path.exists(os.path.join(inputs['path_to_figures'], 'decision_tree_total_cost.svg')):
         net = pandapower.from_pickle(inputs['path_to_case_match_water_optimize'])  # Load previous checkpoint
         df_uniform = pd.read_csv(inputs['path_to_uniform_sa'])  # Load previous checkpoint
 
@@ -215,21 +214,17 @@ def main():
 
         # Visualize trees
         try:
-            renderPDF.drawToFile(
-                viz.decision_tree(mods, 'Total Cost ($)', df_uniform, net.uniform_input_factor_labs),
-                os.path.join(inputs['path_to_figures'], 'decision_tree_total_cost.pdf')
+            viz.decision_tree(mods, 'Total Cost ($)', df_uniform, net.uniform_input_factor_labs).save(
+                os.path.join(inputs['path_to_figures'], 'decision_tree_total_cost.svg')
             )
-            renderPDF.drawToFile(
-                viz.decision_tree(mods, 'Generator Cost ($)', df_uniform, net.uniform_input_factor_labs),
-                os.path.join(inputs['path_to_figures'], 'decision_tree_generator_cost.pdf')
+            viz.decision_tree(mods, 'Generator Cost ($)', df_uniform, net.uniform_input_factor_labs).save(
+                os.path.join(inputs['path_to_figures'], 'decision_tree_generator_cost.svg')
             )
-            renderPDF.drawToFile(
-                viz.decision_tree(mods, 'Water Withdrawal (Gallon)', df_uniform, net.uniform_input_factor_labs),
-                os.path.join(inputs['path_to_figures'], 'decision_tree_withdrawal.pdf')
+            viz.decision_tree(mods, 'Water Withdrawal (Gallon)', df_uniform, net.uniform_input_factor_labs).save(
+                os.path.join(inputs['path_to_figures'], 'decision_tree_withdrawal.svg')
             )
-            renderPDF.drawToFile(
-                viz.decision_tree(mods, 'Water Consumption (Gallon)', df_uniform, net.uniform_input_factor_labs),
-                os.path.join(inputs['path_to_figures'], 'decision_tree_consumption.pdf')
+            viz.decision_tree(mods, 'Water Consumption (Gallon)', df_uniform, net.uniform_input_factor_labs).save(
+                os.path.join(inputs['path_to_figures'], 'decision_tree_consumption.svg')
             )
         except UnboundLocalError:
             print('UnboundLocalError: Cannot use both `dtreeviz` and `pandapower.plotting`')
