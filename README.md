@@ -13,7 +13,7 @@ This repository contains the analysis and visualization for our water-informed O
 │   slurm_nonuniform_run.sh: Slurm batch file to run nonuniform sensitivity analysis
 │   slurm_uniform_run.sh: Slurm batch file to run uniform sensitivity analysis
 │   water-OPF.yml: Conda environment
-│   water-OPF-v2.2 - Shortcut.lnk: Link to local copy of io folder
+│   water-OPF-v2.3 - Shortcut.lnk: Link to local copy of io folder
 │   config.ini: Configuration file needed to run `main.py`
 │
 ├───QGIS Manual Spatial Analysis and Cartography

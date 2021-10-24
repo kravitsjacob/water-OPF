@@ -9,8 +9,6 @@ dependencies:
   - scikit-learn
   - dask
   - pandapower
-  - svglib
-  - reportlab
   - pytables
   - pip
   - python-igraph
