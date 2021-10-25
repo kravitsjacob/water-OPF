@@ -17,3 +17,6 @@ pip install dtreeviz # Must be installed via pip
 
 # Run analysis
 python main.py -c config.ini
+
+# Print exit code
+echo $?
