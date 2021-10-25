@@ -1,3 +1,5 @@
+""" Source code of all functions used in this analysis """
+
 import os
 import itertools
 import copy
@@ -11,6 +13,14 @@ from sklearn import tree
 
 
 def network_to_gen_info(net):
+    """
+    Convert pandapower network to generator information DataFrame.
+
+    @param net: pandapowerNet
+        Pandapower network to convert
+    @return df_gen_info: DataFrame
+        DataFrame of only the pandapower generators
+    """
     # Initialize local vars
     gen_types = ['gen', 'sgen', 'ext_grid']
     df_gen_info = pd.DataFrame()
@@ -25,6 +35,16 @@ def network_to_gen_info(net):
 
 
 def add_gen_info_to_network(df_gen_info, net):
+    """
+    Add the information in `df_gen_info` to `net`
+
+    @param df_gen_info: DataFrame
+        DataFrame of only the pandapower generators
+    @param net: pandapowerNet
+        Pandapower network to add information
+    @return: net: pandapowerNet
+        Pandapower network with added information
+    """
     # Initialize local vars
     gen_types = ['gen', 'sgen', 'ext_grid']
 
@@ -36,6 +56,16 @@ def add_gen_info_to_network(df_gen_info, net):
 
 
 def grid_setup(net, df_gen_info):
+    """
+    Add some basic information, used in this analysis, to a pandapower network
+
+    @param net: pandapowerNet
+        Pandapower network to add information
+    @param df_gen_info: DataFrame
+        DataFrame of only the pandapower generators
+    @return: net: pandapowerNet
+        Pandapower network with added information
+    """
     # Initialize local vars
     gen_types = ['gen', 'sgen', 'ext_grid']
 
@@ -50,6 +80,16 @@ def grid_setup(net, df_gen_info):
 
 
 def generator_match(net, df_gen_matches):
+    """
+    Match synthetic generators to EIA generators with anonymous power plant names
+
+    @param net: pandapowerNet
+        Pandapower network to add information
+    @param df_gen_matches: DataFrame
+        Manually created dataframe of matched generators
+    @return: net: pandapowerNet
+        Pandapower network with added information
+    """
     # Anonymous plant names
     powerworld_plants = df_gen_matches['POWERWORLD Plant Name'].unique()
     anonymous_plants = [f'Plant {i}' for i in range(1, len(powerworld_plants) + 1)]
@@ -63,6 +103,14 @@ def generator_match(net, df_gen_matches):
 
 
 def import_eia(path_to_eia):
+    """
+    Import EIA thermoelectric data
+
+    @param path_to_eia: str
+        Path to EIA data
+    @return: df: DataFrame
+        DataFrame of EIA data
+    """
     # Local Vars
     years = ['2019', '2018', '2017', '2016', '2015', '2014']
     df_list = []
@@ -85,6 +133,16 @@ def import_eia(path_to_eia):
 
 
 def get_cooling_system(df_eia, df_gen_info):
+    """
+    Get cooling system information of synthetic generators
+
+    @param df_eia: DataFrame
+        DataFrame of EIA data from `import_eia`
+    @param df_gen_info: DataFrame
+        DataFrame of only the pandapower generators
+    @return df_gen_info: DataFrame
+        DataFrame of only the pandapower generators with cooling system information
+    """
     # Matches from manual analysis of EIA dataset
     df_eia = df_eia.drop_duplicates(subset='Plant Name', keep='first')
     df_gen_info['923 Cooling Type'] = df_gen_info.merge(
@@ -114,6 +172,14 @@ def get_cooling_system(df_eia, df_gen_info):
 
 
 def get_regional(df):
+    """
+    Get regional thermoelectric data
+
+    @param df: DataFrame
+        DataFrame of EIA data from `import_eia`
+    @return: df: DataFrame
+        Filtered DataFrame with only the regional data from the input DataFrame
+    """
     # Convert units
     df['Withdrawal Rate (Gallon/kWh)'] = \
         df['Water Withdrawal Volume (Million Gallons)'].astype('float64') \
@@ -191,6 +257,20 @@ def get_regional(df):
 
 
 def kmeans_wrapper(df_region, cool_type, n_cluster):
+    """
+    K means clustering wrapper for cooling systems
+
+    @param df_region: DataFrame
+        DataFrame of regional water use data from `get_regional`
+    @param cool_type: str
+        Type of cooling system
+    @param n_cluster: int
+        Number of clusters to separate
+    @return: kmeans: sklearn.cluster._kmeans.KMeans
+        K means scikit object
+    @return: df_region: DataFrame
+        Regional dataframe with k-means information
+    """
     idxs = df_region.index[(df_region['Fuel Type'] == 'coal') & (df_region['923 Cooling Type'] == cool_type)]
     kmeans = KMeans(
         n_clusters=n_cluster, random_state=1008
@@ -200,6 +280,20 @@ def kmeans_wrapper(df_region, cool_type, n_cluster):
 
 
 def get_cluster(df_geninfo, kmeans, fuel_type, cool_type):
+    """
+    Get cooling system cluster
+
+    @param df_geninfo: DataFrame
+        DataFrame of only the pandapower generators
+    @param kmeans: sklearn.cluster._kmeans.KMeans
+        K means scikit object from `kmeans_wrapper`
+    @param fuel_type: str
+        Type of fuel system
+    @param cool_type: str
+        Type of cooling system
+    @return df_geninfo: DataFrame
+        DataFrame of only the pandapower generators with cluster number added
+    """
     idxs_geninfo = df_geninfo.index[(df_geninfo['MATPOWER Fuel'] == fuel_type) &
                                     (df_geninfo['923 Cooling Type'] == cool_type)]
     df_geninfo.loc[idxs_geninfo, 'Cluster'] = kmeans.predict(
@@ -209,6 +303,22 @@ def get_cluster(df_geninfo, kmeans, fuel_type, cool_type):
 
 
 def get_cluster_data(df_geninfo, df_region, fuel_type, cool_type, cluster):
+    """
+    Get cooling system cluster thermoelectric data
+
+    @param df_geninfo: DataFrame
+        DataFrame of only the pandapower generators
+    @param df_region: DataFrame
+        DataFrame of regional water use data from `kmeans_wrapper`
+    @param fuel_type: str
+        Type of fuel system
+    @param cool_type: str
+        Type of cooling system
+    @param cluster: float
+        Cluster for water use data
+    @return df_geninfo: DataFrame
+        DataFrame of only the pandapower generators with clustered water used data added
+    """
     # Get regional cluster data
     idxs_region = df_region.index[(df_region['Fuel Type'] == fuel_type) &
                                   (df_region['923 Cooling Type'] == cool_type) & (df_region['Cluster'] == cluster)]
@@ -228,6 +338,18 @@ def get_cluster_data(df_geninfo, df_region, fuel_type, cool_type, cluster):
 
 
 def get_generator_water_data(df_region, df_geninfo):
+    """
+    Get all generator water use data for synthetic generators
+
+    @param df_region: DataFrame
+        DataFrame of regional water use data from `get_regional`
+    @param df_geninfo: DataFrame
+        DataFrame of only the pandapower generators
+    @return df_geninfo: DataFrame
+        DataFrame of only the pandapower generators with clustered water used data added
+    @return df_region: DataFrame
+        DataFrame of regional water use data with cluster information
+    """
     # K means clustering for coal plants
     kmeans_coal_ri, df_region = kmeans_wrapper(df_region, 'RI', n_cluster=3)
     kmeans_coal_rc, df_region = kmeans_wrapper(df_region, 'RC', n_cluster=2)
@@ -261,6 +383,14 @@ def get_generator_water_data(df_region, df_geninfo):
 
 
 def get_historic_nonuniform_water_coefficients(df_region):
+    """
+    Get the historic nonuniform water coefficients
+
+    @return df_region: DataFrame
+        DataFrame of regional water use data with cluster information
+    @return df: DataFrame
+        DataFrame of historic nonuniform water coefficients
+    """
     df_region['Uniform Water Coefficient Consumption'] = \
         df_region['Withdrawal Rate (Gallon/kWh)'] / df_region['Withdrawal Rate (Gallon/kWh) Median']
     df_region['Uniform Water Coefficient Withdrawal'] = \
@@ -277,6 +407,22 @@ def get_historic_nonuniform_water_coefficients(df_region):
 
 
 def cooling_system_information(net, df_eia):
+    """
+    Wrapper function to get the cooling system information of all the synthetic generators
+
+    @param net: pandapowerNet
+        Pandapower network to add cooling information
+    @param df_eia: DataFrame
+        DataFrame of EIA cooling data
+    @return net: pandapowerNet
+        Pandapower network with add cooling information
+    @return df_hnwc: DataFrame
+        DataFrame of historic nonuniform water coefficients for the region
+    @return df_region: DataFrame
+        DataFrame of regional water use
+    @return  df_gen_info: DataFrame
+        DataFrame of only the pandapower generators with the added cooling information
+    """
     # Convert generator information dataframe (this makes the processing easier)
     df_gen_info = network_to_gen_info(net)
 
@@ -307,6 +453,14 @@ def cooling_system_information(net, df_eia):
 
 
 def optimization_information(net):
+    """
+    Add some basic information used for the optimization to pandapower network
+
+    @param net: pandapowerNet
+        Pandapower network to add information
+    @return net: pandapowerNet
+        Pandapower network with add optimization information
+    """
     # Initialize local vars
     gen_types = ['gen', 'sgen', 'ext_grid']
     objective_labs = ['Total Cost ($)',
@@ -373,12 +527,38 @@ def optimization_information(net):
     return net
 
 
-def uniform_input_factor_multiply(c_water, c_load, beta_with, beta_con, beta_load, labs):
+def uniform_input_coefficient_multiply(c_water, c_load, beta_with, beta_con, beta_load, labs):
+    """
+    Multiply the exogenous parameter byu the uniform coefficients
+
+    @param c_water: float
+        Uniform water coefficient
+    @param c_load: float
+        Uniform load coefficient
+    @param beta_with: Series
+        Series of withdrawal exogenous parameters
+    @param beta_con: Series
+        Series of consumption exogenous parameters
+    @param beta_load: Series
+        Series of load exogenous parameters
+    @param labs: list
+        List of exogenous parameter labels
+    @return: Series
+        Series of multiplied exogenous parameters
+    """
     vals = np.concatenate((c_water * beta_with, c_water * beta_con, c_load * beta_load))
     return pd.Series(vals, index=labs)
 
 
-def get_uniform_search(df_gridspecs):
+def get_uniform_sample(df_gridspecs):
+    """
+    Create the uniform sensitivity analysis sampling space
+
+    @param df_gridspecs: DataFrame
+        DataFrame of grid specifications
+    @return df_samp: DataFrame
+        DataFrame of sampled space
+    """
     # Set search values
     w_with_vals = np.linspace(df_gridspecs['Min']['Withdrawal Weight ($/Gallon)'],
                               df_gridspecs['Max']['Withdrawal Weight ($/Gallon)'],
@@ -394,14 +574,26 @@ def get_uniform_search(df_gridspecs):
                                df_gridspecs['Number of Steps']['Uniform Water Coefficient'])
 
     # Create grid
-    df_search = pd.DataFrame(
+    df_samp = pd.DataFrame(
         list(itertools.product(w_with_vals, w_con_vals, c_load_vals, c_water_vals)), columns=df_gridspecs.index
     )
 
-    return df_search
+    return df_samp
 
 
 def water_opf(ser_exogenous, net, t):
+    """
+    Proposed water-informed OPF
+
+    @param ser_exogenous: Series
+        Series of exogenous parameters
+    @param net: pandapowerNet
+        Pandapower network with all required information
+    @param t: float
+        Timestep conversion coefficient
+    @return net: pandapowerNet
+        Pandapower network with results from optimization
+    """
     # Create dataFrame of loads
     df_load = ser_exogenous[ser_exogenous.index.str.contains('Load')].to_frame('Load (MW)')
     df_load['bus'] = df_load.index.str.extract(r'(\d+)').astype(int).values
@@ -455,6 +647,14 @@ def water_opf(ser_exogenous, net, t):
 
 
 def get_internal(net):
+    """
+    Get internal state variables
+
+    @param net: pandapowerNet
+        Pandapower network to get information
+    @return df_internal:
+        DataFrame of internal state variables
+    """
     # Initialize local vars
     gen_types = ['res_gen', 'res_sgen', 'res_ext_grid']
     df_internal = pd.DataFrame()
@@ -472,6 +672,21 @@ def get_internal(net):
 
 
 def water_opf_wrapper(ser_exogenous, t, net, output_type='numeric'):
+    """
+    Multi-objective wrapper function around `water_opf`
+    @param ser_exogenous: Series
+        Series of exogenous parameters
+    @param net: pandapowerNet
+        Pandapower network with all required information
+    @param t: float
+        Timestep conversion coefficient
+    @param output_type: str {'numeric', 'net'}
+        Type of output to use
+    @return net: pandapowerNet
+        Pandapower network with results from optimization
+    @return ser_results: Series
+        Series of objectives and internal state variables.
+    """
     # Initialize local vars
     net = copy.deepcopy(net)  # Copy network so not changed later
 
@@ -508,6 +723,18 @@ def water_opf_wrapper(ser_exogenous, t, net, output_type='numeric'):
 
 
 def uniform_sa(net, n_tasks, n_steps):
+    """
+    Uniform sensitivity analysis
+
+    @param net: pandapowerNet
+        Pandapower network with all required information
+    @param n_tasks: int
+        Number of tasks for parallelization
+    @param n_steps: int
+        Number of steps for sampling
+    @return df_uniform: DataFrame
+        DataFrame of results of analysis
+    """
     # Initialize local vars
     df_gridspecs = pd.DataFrame(
         data=[[0.0, 0.1, n_steps], [0.0, 1.0, n_steps], [1.0, 1.5, n_steps], [0.5, 1.5, n_steps]],
@@ -518,8 +745,8 @@ def uniform_sa(net, n_tasks, n_steps):
     print('Success: Initialized Uniform Sensitivity Analysis')
 
     # Get input factor search space
-    df_search = get_uniform_search(df_gridspecs)
-    print('Number of Searches: ', len(df_search))
+    df_samp = get_uniform_sample(df_gridspecs)
+    print('Number of Searches: ', len(df_samp))
     print('Success: Grid Created')
 
     # Convert generator information dataframe (this makes the processing easier)
@@ -530,35 +757,49 @@ def uniform_sa(net, n_tasks, n_steps):
     beta_con_median = df_gen_info['Median Consumption Rate (Gallon/kWh)'].values
     beta_load_median = net.load['p_mw'].values
     print('Success: Uniform SA, Extract Medians')
-    df_exogenous = df_search.apply(lambda row: uniform_input_factor_multiply(
+    df_exogenous = df_samp.apply(lambda row: uniform_input_coefficient_multiply(
         row['Uniform Water Coefficient'],
         row['Uniform Loading Coefficient'],
         beta_with_median,
         beta_con_median,
         beta_load_median,
-        net.exogenous_labs[2:]  # First two parameters in df_search
+        net.exogenous_labs[2:]  # First two parameters in df_samp
     ), axis=1)
     print('Success: Uniform SA, Multiply exogenous')
 
     # Combine input factor grid and exogenous parameters
-    df_search_exogenous = pd.concat([df_search, df_exogenous], axis=1)
+    df_samp_exogenous = pd.concat([df_samp, df_exogenous], axis=1)
 
     # Run Sampling
-    ddf_search_exogenous = dd.from_pandas(df_search_exogenous, npartitions=n_tasks)
+    ddf_samp_exogenous = dd.from_pandas(df_samp_exogenous, npartitions=n_tasks)
     print('Success: Uniform SA, Dask Conversion')
-    df_results = ddf_search_exogenous.apply(
+    df_results = ddf_samp_exogenous.apply(
         lambda row: water_opf_wrapper(row[net.exogenous_labs], t, net),
         axis=1,
         meta=pd.DataFrame(columns=net.results_labs, dtype='float64')
     ).compute(scheduler='processes')
     print('Success: Uniform SA, Grid Sampled')
-    df_uniform = pd.concat([df_search_exogenous, df_results], axis=1)
+    df_uniform = pd.concat([df_samp_exogenous, df_results], axis=1)
     df_uniform = df_uniform.drop_duplicates()  # Sometimes the parallel jobs replicate rows
 
     return df_uniform
 
 
 def get_plant_output_ratio(df, df_gen_info, uniform_factor_labs, obj_labs):
+    """
+    Get the plant output ratio of all the plants
+
+    @param df: DataFrame
+        DataFrame of results from sensitivity analysis
+    @param  df_gen_info: DataFrame
+        DataFrame of only the pandapower generators
+    @param uniform_factor_labs: list
+        Labels for uniform factors
+    @param obj_labs: list
+        Labels for objectives
+    @return df_plant_capacity_ratio: DataFrame
+        DataFrame of plant capacity ratios
+    """
     # Internal vars
     n_runs = len(df)
     plant_names = df_gen_info['Plant Name'].unique().tolist()
@@ -597,6 +838,16 @@ def get_plant_output_ratio(df, df_gen_info, uniform_factor_labs, obj_labs):
 
 
 def get_line_flow_difference(net):
+    """
+    Get difference in line flows from two scenarios
+
+    @param net: pandapowerNet
+        Pandapower network with all required information
+    @return net_diff: pandapowerNet
+        Pandapower network with differences of line flows
+    @return df_line_flows: DataFrame
+        DataFrame of line flow differences
+    """
     # Preparing information
     net = copy.deepcopy(net)
     net.line['name'] = net.line['from_bus'].astype(str) + ' - ' + net.line['to_bus'].astype(str)
@@ -604,24 +855,24 @@ def get_line_flow_difference(net):
 
     # Get uniform df for subsets (See uniform_sa for references)
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
-    df_search = pd.DataFrame({'Uniform Water Coefficient': [0.5, 0.5],
-                              'Uniform Loading Coefficient': [1.5, 1.5],
-                              'Withdrawal Weight ($/Gallon)': [0.0, 0.1],
-                              'Consumption Weight ($/Gallon)': [0.0, 0.0]})
+    df_samp = pd.DataFrame({'Uniform Water Coefficient': [0.5, 0.5],
+                            'Uniform Loading Coefficient': [1.5, 1.5],
+                            'Withdrawal Weight ($/Gallon)': [0.0, 0.1],
+                            'Consumption Weight ($/Gallon)': [0.0, 0.0]})
     df_gen_info = network_to_gen_info(net)
     beta_with_median = df_gen_info['Median Withdrawal Rate (Gallon/kWh)'].values
     beta_con_median = df_gen_info['Median Consumption Rate (Gallon/kWh)'].values
     beta_load_median = net.load['p_mw'].values
-    df_exogenous = df_search.apply(lambda row: uniform_input_factor_multiply(
+    df_exogenous = df_samp.apply(lambda row: uniform_input_coefficient_multiply(
         row['Uniform Water Coefficient'],
         row['Uniform Loading Coefficient'],
         beta_with_median,
         beta_con_median,
         beta_load_median,
-        net.exogenous_labs[2:]  # First two parameters in df_search
+        net.exogenous_labs[2:]  # First two parameters in df_samp
     ), axis=1)
-    df_search_exogenous = pd.concat([df_search, df_exogenous], axis=1)
-    list_net = list(df_search_exogenous.apply(
+    df_samp_exogenous = pd.concat([df_samp, df_exogenous], axis=1)
+    list_net = list(df_samp_exogenous.apply(
         lambda row: water_opf_wrapper(row[net.exogenous_labs], t, net, output_type='net'),
         axis=1
     ))
@@ -649,6 +900,18 @@ def get_line_flow_difference(net):
 
 
 def fit_single_models(df, obj_labs, factor_labs):
+    """
+    Fit decision trees to single objectives
+
+    @param df: DataFrame
+        DataFrame of results from `uniform_sa`
+    @param obj_labs: list
+        List of objective labels
+    @param factor_labs: list
+        List of factor labels
+    @return mods: dict
+        Dictionary of decision tree models
+    """
     mods = {}
     for i in obj_labs:
         clf = tree.DecisionTreeRegressor(random_state=1008, max_depth=5, max_leaf_nodes=12)
@@ -657,6 +920,20 @@ def fit_single_models(df, obj_labs, factor_labs):
 
 
 def generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc):
+    """
+    Generate nonuniform samples for nonuniform sensitivity analysis
+
+    @param n_sample: int
+        Number of samples to generate
+    @param df_gen_info: DataFrame
+        DataFrame of only the pandapower generators
+    @param df_hnwc: DataFrame
+        DataFrame of historic nonuniform water coefficients for the region
+    @return df_sample: DataFrame
+        Sampling DataFrame
+    @return df_hnwc: DataFrame
+        DataFrame of historic nonuniform water coefficients
+    """
     # Set seed
     rng = np.random.default_rng(1008)
 
@@ -676,6 +953,22 @@ def generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc):
 
 
 def nonuniform_factor_multiply(ser_c_water, c_load, exogenous_labs, net, df_geninfo):
+    """
+    Multiply the nonuniform exogenous parameters
+
+    @param ser_c_water: Series
+        Series of nonuniform water coefficients
+    @param c_load: float
+        Uniform load coefficient
+    @param exogenous_labs: list
+        Exogenous labels
+    @param net: pandapowerNet
+        Pandapower network with all required information
+    @param df_geninfo: DataFrame
+        DataFrame of only the pandapower generators
+    @return: Series
+         Series of multiplied exogenous parameters
+    """
     # Nonuniform coefficients
     df_geninfo = df_geninfo.merge(ser_c_water, left_on=['Plant Name'], right_index=True, how='left')
     df_geninfo.iloc[:, -1].fillna(0, inplace=True)  # Joined column will always be last
@@ -690,6 +983,26 @@ def nonuniform_factor_multiply(ser_c_water, c_load, exogenous_labs, net, df_geni
 
 
 def get_nonuniform_exogenous(df_sample, w_with, w_con, c_load, df_geninfo, net, exogenous_labs):
+    """
+    Get nonuniform exogenous sample space
+
+    @param df_sample: DataFrame
+        DataFrame of factor space
+    @param w_with: float
+        Withdrawal weight
+    @param w_con: float
+        Consumption weight
+    @param c_load: float
+        Uniform loading coefficient
+    @param df_geninfo: DataFrame
+        DataFrame of only the pandapower generators
+    @param net: pandapowerNet
+        Pandapower network with all required information
+    @param exogenous_labs: list
+        Labels for exogenous parameters
+    @return df_exogenous: DataFrame
+        DataFrame of multiplied exogenous parameters
+    """
     # Formatting
     original_columns = df_sample.columns
     df_sample.columns = [i.split(' Non-Uniform Water Coefficient')[:][0] for i in df_sample.columns]
@@ -718,8 +1031,6 @@ def MGSA_FirstOrder(Input, Output, ndomain):
     This algorithm is proposed by me. Please cite the following paper if you use this code.
     Li, Chenzhao, and Sankaran Mahadevan. "An efficient modularized sample-based method to
     estimate the first-order Sobol’index." Reliability Engineering & System Safety (2016).
-
-    TODO before publishing, make sure this is just cloned from his site
     '''
     (nsample, nd) = np.shape(Input);
 
@@ -754,6 +1065,24 @@ def MGSA_FirstOrder(Input, Output, ndomain):
 
 
 def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
+    """
+    Nonuniform sensitivity analysis
+
+    @param df_hnwc: DataFrame
+        Historic nonuniform water coefficients
+    @param df_operation: DataFrame
+        DataFrame of operational scenarios
+    @param n_tasks: int
+        Number of tasks for parallelization
+    @param n_sample: int
+        Number of samples
+   @param net: pandapowerNet
+        Pandapower network with all required information
+    @return df_nonuniform: DataFrame
+        Results of nonuniform sampling
+    @return df_nonuniform_sobol: DataFrame
+        Results of Sobol analysis
+    """
     # Initialize local vars
     t = 5 * 1 / 60 * 1000  # minutes * hr/minutes * kw/MW
     results_ls = []
@@ -763,14 +1092,14 @@ def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
     df_gen_info = network_to_gen_info(net)
 
     # Get input factor search space
-    df_search, df_hnwc = generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc)
-    factor_labs = df_search .columns.to_list()
-    print('Nonuniform Number of Samples: ', len(df_search))
+    df_samp, df_hnwc = generate_nonuniform_samples(n_sample, df_gen_info, df_hnwc)
+    factor_labs = df_samp .columns.to_list()
+    print('Nonuniform Number of Samples: ', len(df_samp))
 
     for index, row in df_operation.iterrows():
         # Apply coefficients to exogenous parameters
         df_exogenous = get_nonuniform_exogenous(
-            df_search.copy(),
+            df_samp.copy(),
             row['Withdrawal Weight ($/Gallon)'],
             row['Consumption Weight ($/Gallon)'],
             row['Uniform Loading Factor'],
@@ -781,12 +1110,12 @@ def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
         print('Success: Nonuniform SA, Multiply exogenous')
 
         # Combine input factor grid and exogenous parameters
-        df_search_exogenous = pd.concat([df_search, df_exogenous], axis=1)
+        df_samp_exogenous = pd.concat([df_samp, df_exogenous], axis=1)
 
         # Evaluate model
-        ddf_search_exogenous = dd.from_pandas(df_search_exogenous, npartitions=n_tasks)
+        ddf_samp_exogenous = dd.from_pandas(df_samp_exogenous, npartitions=n_tasks)
         print('Success: Nonuniform SA, Dask Conversion')
-        df_results = ddf_search_exogenous.apply(
+        df_results = ddf_samp_exogenous.apply(
             lambda row_loc: water_opf_wrapper(row_loc[net.exogenous_labs], t, net),
             axis=1,
             meta=pd.DataFrame(columns=net.results_labs, dtype='float64')
