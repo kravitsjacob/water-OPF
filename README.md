@@ -2,7 +2,7 @@
 
 This repository contains the analysis and visualization for our water-informed OPF paper. More information about this project can be found [here](https://osf.io/8h6pc/).
 
-# Contents
+# I. Contents
 ```
 water-OPF
 │   .gitignore
@@ -151,3 +151,6 @@ This tutorial assumes the use of [gitbash](https://git-scm.com/downloads) or a U
 5. Change to the current working directory using `$cd <insert_path>/water-OPF`
 6. Run the analysis by running `$bash run.sh`
     * To keep this project open source, by default this script does not call the simple Matlab converter functions, and the pre-computed outputs are supplied. However, for the sake of transparency, I have included the Matlab code.
+
+# III. Know Issues
+The decision tree plotting package `dtreeviz` and the power system plotting package `pandapower.plotting` have some dependency issues that prevents `dtreeviz` from being used if `pandapower.plotting` is imported. These errors are caughts by `main.py` to avoid a failing exit code, but the decision trees will not be created. If you want to recreate the decision trees, you must comment line 4 in `src/viz.py`. Please reach out if you know a workaround!
