@@ -5,6 +5,7 @@ eval "$(conda shell.bash hook)"
 
 # Create conda environment
 conda env create -f water-OPF.yml
+pip install dtreeviz # Must be installed via pip
 
 # Load conda environment
 conda activate water-OPF
