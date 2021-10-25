@@ -150,3 +150,4 @@ This tutorial assumes the use of [gitbash](https://git-scm.com/downloads) or a U
 4. Download the associated input/output `water-OPF_io` data [here](https://osf.io/8h6pc/). Place it in the cloned directory. The tree should appear EXACTLY as it does above. 
 5. Change to the current working directory using `$cd <insert_path>/water-OPF`
 6. Run the analysis by running `$bash run.sh`
+    * To keep this project open source, by default this script does not call the simple Matlab converter functions, and the pre-computed outputs are supplied. However, for the sake of transparency, I have included the Matlab code.
