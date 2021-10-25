@@ -1,6 +1,6 @@
 # water-OPF
 
-This repository contains the analysis and visualization for our water-informed OPF paper. More information about this project can be found [here](https://osf.io/8h6pc/).
+This repository contains the analysis and visualization for our water-informed OPF paper. More information about this project can be found [here](https://osf.io/8h6pc/). That url also provides all the pre-computed input and output files needed for this repository (see section II below).
 
 # I. Contents
 ```
