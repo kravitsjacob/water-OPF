@@ -226,8 +226,8 @@ def main():
             viz.decision_tree(mods, 'Water Consumption (Gallon)', df_uniform, net.uniform_input_factor_labs).save(
                 os.path.join(inputs['path_to_figures'], 'decision_tree_consumption.svg')
             )
-        except UnboundLocalError:
-            print('UnboundLocalError: Cannot use both `dtreeviz` and `pandapower.plotting`')
+        except AttributeError:
+            print('AttributeError: Cannot use both `dtreeviz` and `pandapower.plotting`')
 
     # Nonuniform SA
     if not os.path.exists(inputs['path_to_nonuniform_sa_sobol']):
