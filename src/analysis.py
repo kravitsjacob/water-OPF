@@ -1084,7 +1084,7 @@ def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
         Number of tasks for parallelization
     @param n_sample: int
         Number of samples
-   @param net: pandapowerNet
+    @param net: pandapowerNet
         Pandapower network with all required information
     @return df_nonuniform: DataFrame
         Results of nonuniform sampling
