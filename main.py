@@ -1,3 +1,5 @@
+""" Python script to run analysis """
+
 import sys
 import os
 import multiprocessing
