@@ -1,17 +1,22 @@
 #!/bin/bash
 
+# Load conda commands
+eval "$(conda shell.bash hook)"
+
+# Create conda environment
+conda env create -f water-OPF.yml
+
+# Load conda environment
 conda activate water-OPF
+pip install dtreeviz # Must be installed via pip
 
-# Input Files
-pathto_case='G:\\My Drive\\Documents (Stored)\\data_sets\Illinois Synthetic Grid\ACTIVSg200\\case_ACTIVSg200.m'
+# Convert Matlab format (output files supplied)
+#cd src
+#matlab -nojvm -r 'to_MATPOWER; exit;'
+#cd ..
 
-# Temp Files
-#pathto_case_info='G:\My Drive\Documents (Stored)\data_sets\water-OPF-v2.3\temp\gen_info.csv',
-#pathto_case_export='G:\My Drive\Documents (Stored)\data_sets\water-OPF-v2.3\temp\case.mat'
+# Run analysis
+python main.py -c config.ini
 
-# Convert Matlab format
-cd src
-matlab -nojvm -r 'to_MATPOWER; exit;'
-cd ..
-
-python main.py
+# Print exit code
+echo $?

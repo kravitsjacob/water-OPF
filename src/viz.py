@@ -1,4 +1,4 @@
-import os
+""" Source code of all functions used for plotting """
 
 import numpy as np
 import pandapower.plotting as ppp
@@ -11,6 +11,14 @@ sns.set()
 
 
 def uniform_water_coefficient_distribution(df):
+    """
+    Histogram of historic uniform water coefficients
+
+    @param df: DataFrame
+        DataFrame of historic uniform water coefficients
+    @return g: matplotlib.axes._subplots.AxesSubplot
+        Histogram of uniform water coefficients
+    """
     data = (df['Withdrawal Rate (Gallon/kWh)'] / df['Withdrawal Rate (Gallon/kWh) Median']).append(
         df['Consumption Rate (Gallon/kWh)'] / df['Consumption Rate (Gallon/kWh) Median'])
     g = sns.histplot(data)
@@ -19,6 +27,14 @@ def uniform_water_coefficient_distribution(df):
 
 
 def region_water_boxplots(df):
+    """
+    Plot regional water use
+
+    @param df: DataFrame
+        DataFrame of regional water use
+    @return g: matplotlib.axes._subplots.AxesSubplot
+        Catplot of regional water use
+    """
     df_plot = df.melt(value_vars=['Withdrawal Rate (Gallon/kWh)', 'Consumption Rate (Gallon/kWh)'],
                       id_vars=['923 Cooling Type', 'Fuel Type'], var_name='Exogenous Parameter')
     g = sns.catplot(
@@ -46,6 +62,14 @@ def region_water_boxplots(df):
 
 
 def coal_scatter_kmeans(df):
+    """
+    Scatter plot coal water use
+
+    @param df: DataFrame
+        DataFrame of regional water use
+    @return g: matplotlib.axes._subplots.AxesSubplot
+        FacetGrid of coal water use
+    """
     df = df[df['Fuel Type'] == 'coal']
     df_plot = df.melt(value_vars=['Withdrawal Rate (Gallon/kWh)', 'Consumption Rate (Gallon/kWh)'],
                       id_vars=['923 Cooling Type', 'Fuel Type', 'Summer Capacity of Steam Turbines (MW)', 'Cluster'],
@@ -68,6 +92,16 @@ def coal_scatter_kmeans(df):
 
 
 def hnwc_histograms(df, df_gen_info):
+    """
+    Histogram of historic nonuniform water coefficients
+
+    @param df: DataFrame
+        DataFrame of historic nonuniform water coefficients
+    @param df_gen_info: DataFrame
+        DataFrame of only the pandapower generators
+    @return g: matplotlib.axes._subplots.AxesSubplot
+        FacetGrid of histograms of historic nonuniform water coefficients
+    """
     # Titles
     df_titles = df_gen_info.sort_values('MATPOWER Fuel')
     df_titles['Fuel/Cooling Type'] = df_titles['MATPOWER Fuel'] + '/' + df_titles['923 Cooling Type']
@@ -92,6 +126,18 @@ def hnwc_histograms(df, df_gen_info):
 
 
 def effect_of_withdrawal_weight_on_withdrawal(df, uniform_factor_labs, obj_labs):
+    """
+    Plots to show the effect of withdrawal weight on system-wide withdrawal
+
+    @param df: DataFrame
+        Results from uniform sensitivity analysis
+    @param uniform_factor_labs: list
+        Uniform factor labels
+    @param obj_labs: list
+        Objective lables
+    @return fig: matplotlib.axes._subplots.AxesSubplot
+        Line plot of effect of withdrawal weight on system-wide withdrawal
+    """
     # Subsetting data
     plot_df = df[uniform_factor_labs + obj_labs]
     plot_df = plot_df[plot_df['Consumption Weight ($/Gallon)'] == 0.0]
@@ -118,6 +164,14 @@ def effect_of_withdrawal_weight_on_withdrawal(df, uniform_factor_labs, obj_labs)
 
 
 def effect_of_withdrawal_weight_plant_output(df):
+    """
+    Show the effect of withdrawal weight on plant output
+
+    @param df: DataFrame
+        DataFrame of plant output
+    @return g: matplotlib.axes._subplots.AxesSubplot
+        FacetGrid of effect of withdrawal weight on plant output
+    """
     # Subsetting data
     df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
     withdrawal_criteria = [0.0, 0.1, 0.1]
@@ -162,6 +216,14 @@ def effect_of_withdrawal_weight_plant_output(df):
 
 
 def table_effect_of_withdrawal_weight_line_flows(df):
+    """
+    Tabulated results from `effect_of_withdrawal_weight_line_flows`
+
+    @param df: DataFrame
+        Results from uniform sensitivity analysis
+    @return df: DataFrame
+        Tabulated results from `effect_of_withdrawal_weight_line_flows`
+    """
     # Subsetting data
     df = df[df['Consumption Weight ($/Gallon)'] == 0.0]
     df = df[df['Uniform Loading Coefficient'] == 1.5]
@@ -191,6 +253,14 @@ def table_effect_of_withdrawal_weight_line_flows(df):
 
 
 def effect_of_withdrawal_weight_line_flows(net_diff):
+    """
+    Line diagram of effect of withdrawal weight
+
+    @param net_diff: pandapowerNet
+        Pandapower network with from `get_line_flow_difference`
+    @return fig: matplotlib.figure.Figure
+        Line diagram of effect of withdrawal weight
+    """
     # Visualize flow differences
     net_diff.res_line['loading_percent'] = net_diff.res_line['Change in Loading (Percent)']
     net_diff.res_trafo['loading_percent'] = net_diff.res_trafo['Change in Loading (Percent)']
@@ -211,6 +281,20 @@ def effect_of_withdrawal_weight_line_flows(net_diff):
 
 
 def decision_tree(mods, obj_lab, df, uniform_factor_labs):
+    """
+    Depict raw decision trees
+
+    @param mods: dict
+        Dictionary of scikit decision trees
+    @param obj_lab: list
+        Objective labels
+    @param df: DataFrame
+        Results of uniform sensitivity analysis
+    @param uniform_factor_labs: list
+        Uniform factor labels
+    @return viz:
+        Decision tree figure
+    """
     try:
         viz = dtviz.dtreeviz(
             mods[obj_lab],
@@ -228,12 +312,25 @@ def decision_tree(mods, obj_lab, df, uniform_factor_labs):
 
 
 def draw_heatmap(**kwargs):
+    """
+    Wrapper to draw heatmap of sobol index
+    """
     data = kwargs.pop('data')
     data = data.pivot(columns='Plant Name', index='Objective', values='Sobol Index')
     return sns.heatmap(data, **kwargs)
 
 
 def nonuniform_sobol_heatmap(df_sobol, df_gen_info):
+    """
+    Create heatmap of Sobol indices
+
+    @param df_sobol: DataFrame
+        Results of Sobol analysis from nonuniform sensitivity analysis
+    @param df_gen_info: DataFrame
+        DataFrame of only the pandapower generators
+    @return g: matplotlib.axes._subplots.AxesSubplot
+        FacetGrid of heatmaps
+    """
     # Local variables
     input_factor_labs = df_sobol.filter(like='Non-Uniform Water Coefficient').columns
 
@@ -305,6 +402,14 @@ def nonuniform_sobol_heatmap(df_sobol, df_gen_info):
 
 
 def historic_load_hist(df):
+    """
+    Plot histogram of historic load coefficients
+
+    @param df: DataFrame
+        DataFrame of historic load coefficients
+    @return fig: matplotlib.figure.Figure
+        Plot histogram of historic load coefficients
+    """
     # Formatting
     df = df.rename({'ActualLoad': 'Actual Load (MW)'}, axis='columns')
     df['Uniform Loading Coefficient'] = df['Actual Load (MW)'] / df['Actual Load (MW)'].median()
@@ -320,6 +425,14 @@ def historic_load_hist(df):
 
 
 def system_information(df_gen_info):
+    """
+    Get tabulated information about the system
+
+    @param df_gen_info: DataFrame
+        DataFrame of only the pandapower generators
+    @return df: DataFrame
+        Summarized information about the system
+    """
     # Generator aggregation
     df_gens = df_gen_info.groupby('Plant Name')['MATPOWER Index'].apply(set).reset_index(name='Generators')
     df_gens['Generators'] = df_gens.apply(
