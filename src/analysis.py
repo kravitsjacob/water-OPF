@@ -1022,44 +1022,52 @@ def get_nonuniform_exogenous(df_sample, w_with, w_con, c_load, df_geninfo, net, 
     return df_exogenous
 
 
-def MGSA_FirstOrder(Input, Output, ndomain):
-    '''
-    input: nsample * nd matrix, where nsample is the number of sample, and nd
-    is the input dimension
-    output: nsample * 1 array
-    ndomain: number of sub-domain the to divide a single input
-    This algorithm is proposed by me. Please cite the following paper if you use this code.
-    Li, Chenzhao, and Sankaran Mahadevan. "An efficient modularized sample-based method to
-    estimate the first-order Sobol’index." Reliability Engineering & System Safety (2016).
-    '''
-    (nsample, nd) = np.shape(Input);
+def msga_firstorder(input_array, output, n_domain):
+    """
+    Estimation of first order Sobol index. This was proposed in Li, Chenzhao, and Sankaran Mahadevan.
+    "An efficient modularized sample-based method to estimate the first-order Sobol’index."
+    Reliability Engineering & System Safety (2016).
 
-    # convert the input samples into cdf domains
-    U = np.linspace(0.0, 1.0, num=ndomain + 1)
+    This specific code was adapted from https://github.com/VandyChris/Global-Sensitivity-Analysis. Thank you for
+    for providing this code, and your paper is properly cited in our paper!
+
+    @param input_array: NumPy Array
+        sample * nd matrix, where nsample is the number of sample, and nd is the input dimension
+    @param output: NumPy Array
+        nsample * 1 array
+    @param n_domain: int
+        number of sub-domain the to divide a single input
+    @return: float
+        Estimated Sobol index
+    """
+    # Local Vars
+    (nsample, nd) = np.shape(input_array)
+
+    # Convert the input samples into cdf domains
+    u = np.linspace(0.0, 1.0, num=n_domain + 1)
     cdf_input = np.zeros((nsample, nd))
     cdf_values = np.linspace(1.0 / nsample, 1.0, nsample)
 
-    j = 1
     for i in range(nd):
-        IX = np.argsort(Input[:, i])
-        IX2 = np.argsort(IX)
-        cdf_input[:, i] = cdf_values[IX2]
+        ix = np.argsort(input_array[:, i])
+        ix_two = np.argsort(ix)
+        cdf_input[:, i] = cdf_values[ix_two]
 
-    # compute the first-order indices
-    VY = np.var(Output, ddof=1)
-    VarY_local = np.zeros((ndomain, nd))
+    # Compute the first-order indices
+    vy = np.var(output, ddof=1)
+    var_y_local = np.zeros((n_domain, nd))
     for i in range(nd):
         cdf_input_i = cdf_input[:, i]
-        output_i = Output
-        U_i = U
-        for j in range(ndomain):
-            sub = cdf_input_i < U_i[j + 1]
-            VarY_local[j, i] = np.var(output_i[sub], ddof=1)
+        output_i = output
+        u_i = u
+        for j in range(n_domain):
+            sub = cdf_input_i < u_i[j + 1]
+            var_y_local[j, i] = np.var(output_i[sub], ddof=1)
             inverse_sub = ~sub
             cdf_input_i = cdf_input_i[inverse_sub]
             output_i = output_i[inverse_sub]
 
-    index = 1.0 - np.mean(VarY_local, axis=0) / VY
+    index = 1.0 - np.mean(var_y_local, axis=0) / vy
 
     return index
 
@@ -1129,9 +1137,9 @@ def nonuniform_sa(df_hnwc, df_operation, n_tasks, n_sample, net):
         df_sobol_scenario = pd.DataFrame()
         for i in net.objective_labs:
             ndomain = int(np.sqrt(n_sample))
-            si_vals = MGSA_FirstOrder(Input=df_nonuniform_scenario[factor_labs].values,
-                                      Output=df_nonuniform_scenario[i].values,
-                                      ndomain=ndomain)
+            si_vals = msga_firstorder(input_array=df_nonuniform_scenario[factor_labs].values,
+                                      output=df_nonuniform_scenario[i].values,
+                                      n_domain=ndomain)
             df_sobol_scenario = df_sobol_scenario.append(pd.Series(si_vals, index=factor_labs).rename(i))
         print('Success: ' + row['Operational Scenario'] + ' Sobol Analysis')
 
