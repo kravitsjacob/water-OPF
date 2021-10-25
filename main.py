@@ -1,6 +1,5 @@
 """ Python script to run analysis """
 
-import sys
 import os
 import multiprocessing
 import configparser
@@ -9,9 +8,8 @@ import argparse
 import pandapower.converter
 import pandas as pd
 
-sys.path.insert(0, 'src')
-import analysis  # noqa: E402
-import viz  # noqa: E402
+from src import analysis
+from src import viz
 
 
 def input_parse():
@@ -66,8 +64,8 @@ def input_parse():
     path_to_tables = os.path.join(path_to_data, config_inputs['FIGURES']['tables'])
 
     # Paths for external Inputs
-    path_to_eia_raw = config_inputs['EXTERNAL INPUTS']['EIA_raw']
-    path_to_load = config_inputs['EXTERNAL INPUTS']['load']
+    path_to_eia_raw = os.path.join(path_to_data, config_inputs['EXTERNAL INPUTS']['EIA_raw'])
+    path_to_load = os.path.join(path_to_data, config_inputs['EXTERNAL INPUTS']['load'])
 
     # Paths for checkpoints
     path_to_matpowercase = os.path.join(path_to_data, config_inputs['CHECKPOINTS']['matpowercase'])
