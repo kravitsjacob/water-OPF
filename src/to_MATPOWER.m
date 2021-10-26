@@ -1,6 +1,6 @@
 pathto_case='../water-OPF-io-v2.3/external_data/Illinois Synthetic Grid/ACTIVSg200/case_ACTIVSg200.m'
-pathto_case_info='../water-OPF-io-v2.3/temp/synthetic_grid/gen_info.csv',
-pathto_case_export='../water-OPF-io-v2.3/temp/synthetic_grid/case.mat'
+pathto_case_info='../water-OPF-io-v2.3/generated_files/synthetic_grid/gen_info.csv',
+pathto_case_export='../water-OPF-io-v2.3/generated_files/synthetic_grid/case.mat'
 
 main(pathto_case, pathto_case_info, pathto_case_export)
 
