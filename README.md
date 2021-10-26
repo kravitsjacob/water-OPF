@@ -51,7 +51,7 @@ water-OPF
     │       line_flows.csv
     │       system_information.csv
     │
-    ├───temp: Temporary 'checkpoint' files useful for debugging
+    ├───generated_files: generated_filesorary 'checkpoint' files useful for debugging
     │   │   EIA.h5
     │   │   case.p
     │   │   case_match.p
