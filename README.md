@@ -23,7 +23,7 @@ water-OPF
 │       to_MATPOWER.m: MATLAB script to convert matpower format
 │       viz.py: Functions used to visualization
 │
-└───water-OPF_io
+└───water-OPF-io-v2.3
     ├───figures: Figures that appear in the paper
     │       uniform_water_coefficient_distribution.pdf
     │       region_water_boxplots.pdf
@@ -147,7 +147,7 @@ This tutorial assumes the use of [gitbash](https://git-scm.com/downloads) or a U
 1. This project utilizes conda to manage environments and ensure consistent results. Download [miniconda](https://docs.conda.io/en/latest/miniconda.html) and ensure you can activate it from your terminal by running `$conda activate` 
     * Depending on system configuration, this can be an involved process [here](https://discuss.codecademy.com/t/setting-up-conda-in-git-bash/534473) is a recommended thread.
 3. Clone the repository using `$git clone https://github.com/kravitsjacob/water-OPF.git`
-4. Download the associated input/output `water-OPF_io` data [here](https://osf.io/8h6pc/). Place it in the cloned directory. The tree should appear EXACTLY as it does above. 
+4. Download the associated input/output `water-OPF-io-v2.3` data [here](https://osf.io/8h6pc/). Place it in the cloned directory. The tree should appear EXACTLY as it does above. 
 5. Change to the current working directory using `$cd <insert_path>/water-OPF`
 6. Run the analysis by running `$bash run.sh`
     * To keep this project open source, by default this script does not call the simple Matlab converter functions, and the pre-computed outputs are supplied. However, for the sake of transparency, I have included the Matlab code.
